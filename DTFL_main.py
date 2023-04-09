@@ -83,7 +83,7 @@ def prGreen(skk): print("\033[92m {}\033[00m" .format(skk))
 ''' Mahmoud Init '''
 
 def add_args(parser):
-    parser.add_argument('--client_number', type=int, default=100, metavar='NN',
+    parser.add_argument('--client_number', type=int, default=10, metavar='NN',
                         help='number of workers in a distributed cluster')
     parser.add_argument('--running_name', default="default", type=str)
     parser.add_argument('--KD_beta_init', default=1.0, type=float)    # (1-alpha) CE + alpha DCOR + beta KD(client-side)
@@ -117,12 +117,12 @@ def add_args(parser):
     parser.add_argument('--optimizer', default="Adam", type=str, help='optimizer: SGD, Adam, etc.')
     parser.add_argument('--wd', help='weight decay parameter;', type=float, default=5e-4)
     
-    parser.add_argument('--dataset', type=str, default='cinic10', metavar='N',
+    parser.add_argument('--dataset', type=str, default='cifar10', metavar='N',
                         help='dataset used for training')
     parser.add_argument('--data_dir', type=str, default='./data', help='data directory')
     parser.add_argument('--partition_method', type=str, default='hetero', metavar='N',
                         help='how to partition the dataset on local workers')
-    parser.add_argument('--partition_alpha', type=float, default=0.5, metavar='PA',
+    parser.add_argument('--partition_alpha', type=float, default=1000000, metavar='PA',
                         help='partition alpha (default: 0.5)')
     
     parser.add_argument('--model', type=str, default='resnet56_7', metavar='N',
@@ -1512,7 +1512,7 @@ class Client(object):
                             loss = loss_kd + (1 - dcor_coefficient) * loss
                             
                         if whether_dcor:
-                            loss += dcor_coefficient * dis_corr(images,fx)
+                            loss = (1 - dcor_coefficient) * loss + dcor_coefficient * dis_corr(images,fx)
                             Dcorloss_client_train.append(((dcor_coefficient)*dis_corr(images,fx)))                    
                             # print(dis_corr(images,fx))
                             # normedweight = np.ones(batch_size)
@@ -1575,7 +1575,7 @@ class Client(object):
         
         # clients log
         # wandb.log({"Client{}_CELoss".format(idx): float(sum(CEloss_client_train)), "epoch": iter}, commit=False)
-        # wandb.log({"Client{}_DcorLoss".format(idx): float(sum(Dcorloss_client_train)), "epoch": iter}, commit=False)
+        wandb.log({"Client{}_DcorLoss".format(idx): float(sum(Dcorloss_client_train)), "epoch": iter}, commit=False)
         # wandb.log({"Client{}_KDLoss".format(idx): float(sum(KDloss_client_train)), "epoch": iter}, commit=False)            
         wandb.log({"Client{}_Training_Duration (s)".format(idx): time_client, "epoch": iter}, commit=False)
         print(f"Client{idx}_Training_Duration: {time_client:,.3f} (s)")
@@ -1818,8 +1818,8 @@ if args.whether_aggregated_federation == 1 and not args.whether_FedAVG_base:
                     #k1 = 'module'+k
                     k1 = k1[7:]
                 
-                #if (k == 'fc.bias' or k == 'fc.weight'):
-                if (k == 'module.fc.bias' or k == 'module.fc.weight'):
+                if (k == 'fc.bias' or k == 'fc.weight'):
+                # if (k == 'module.fc.bias' or k == 'module.fc.weight'):
                     continue 
                 
                 w_glob_client_tier[t][k] = w_glob[k1]
