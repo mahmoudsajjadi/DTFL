@@ -100,7 +100,7 @@ def add_args(parser):
     parser.add_argument('--whether_local_loss', default=True, type=bool)
     parser.add_argument('--whether_local_loss_v2', default=False, type=bool)
     parser.add_argument('--whether_FedAVG_base', default=False, type=bool) # this is for base line of fedavg
-    parser.add_argument('--whether_dcor', default=False, type=bool)
+    parser.add_argument('--whether_dcor', default=True, type=bool)
     parser.add_argument('--whether_multi_tier', default=True, type=bool)
     parser.add_argument('--whether_federation_at_clients', default=True, type=bool)
     parser.add_argument('--whether_aggregated_federation', default=1, type=int)
@@ -110,14 +110,14 @@ def add_args(parser):
     parser.add_argument('--dcor_coefficient', default=0.5, type=float)  # same as alpha in paper
     parser.add_argument('--tier', default=5, type=int)
     parser.add_argument('--client_epoch', default=1, type=int)
-    parser.add_argument('--batch_size', type=int, default=100, metavar='N',
+    parser.add_argument('--batch_size', type=int, default=2, metavar='N',
                         help='input batch size for training (default: 64)')
     parser.add_argument('--whether_pretrained_on_client', default=0, type=int) # from fedgkt
     parser.add_argument('--whether_pretrained', default=0, type=int)  # from https://github.com/chenyaofo/pytorch-cifar-models
     parser.add_argument('--optimizer', default="Adam", type=str, help='optimizer: SGD, Adam, etc.')
     parser.add_argument('--wd', help='weight decay parameter;', type=float, default=5e-4)
     
-    parser.add_argument('--dataset', type=str, default='cifar10', metavar='N',
+    parser.add_argument('--dataset', type=str, default='HAM10000', metavar='N',
                         help='dataset used for training')
     parser.add_argument('--data_dir', type=str, default='./data', help='data directory')
     parser.add_argument('--partition_method', type=str, default='hetero', metavar='N',
@@ -1502,7 +1502,8 @@ class Client(object):
                         if args.dataset != 'HAM10000':
                             labels = labels.to(torch.long)
                         loss = criterion(extracted_features, labels) # to solve change dataset)
-                        CEloss_client_train.append(((1 - dcor_coefficient)*loss.item()))                    
+                        CEloss_client_train.append(((1 - dcor_coefficient)*loss.item()))    
+                        
                         
                         if whether_distillation_on_clients:
                             batch_logits = extracted_features
@@ -1512,11 +1513,10 @@ class Client(object):
                             loss = loss_kd + (1 - dcor_coefficient) * loss
                             
                         if whether_dcor:
-                            loss = (1 - dcor_coefficient) * loss + dcor_coefficient * dis_corr(images,fx)
-                            Dcorloss_client_train.append(((dcor_coefficient)*dis_corr(images,fx)))                    
-                            # print(dis_corr(images,fx))
-                            # normedweight = np.ones(batch_size)
-                            # loss += dcor_coefficient * distance_corr(images,fx,normedweight)
+                            Dcor_value = dis_corr(images,fx)
+                            loss = (1 - dcor_coefficient) * loss + dcor_coefficient * Dcor_value
+                            Dcorloss_client_train.append(((dcor_coefficient) * Dcor_value))   
+
                         loss.backward()
     
                     elif not whether_GKT_local_loss:
