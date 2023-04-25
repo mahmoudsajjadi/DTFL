@@ -122,11 +122,11 @@ def add_args(parser):
         
     # Federated learning related arguments
     parser.add_argument('--client_epoch', default=1, type=int)
-    parser.add_argument('--client_number', type=int, default=10, metavar='NN',
+    parser.add_argument('--client_number', type=int, default=20, metavar='NN',
                         help='number of workers in a distributed cluster')
-    parser.add_argument('--batch_size', type=int, default=90, metavar='N',
+    parser.add_argument('--batch_size', type=int, default=95, metavar='N',
                         help='input batch size for training (default: 64)')
-    parser.add_argument('--rounds', default=200, type=int)
+    parser.add_argument('--rounds', default=300, type=int)
     parser.add_argument('--whether_local_loss', default=True, type=bool)
     parser.add_argument('--whether_local_loss_v2', default=False, type=bool)
     parser.add_argument('--whether_FedAVG_base', default=False, type=bool) # this is for base line of fedavg
@@ -159,7 +159,7 @@ def add_args(parser):
                         help='version of aggregation')
     parser.add_argument('--global_model', type=int, default=0 , metavar='N',
                         help='global model for testing the method')
-    parser.add_argument('--test_before_train', type=int, default=1 , metavar='N',  # by this we can check the accuracy of global model
+    parser.add_argument('--test_before_train', type=int, default=0 , metavar='N',  # by this we can check the accuracy of global model
                         help='test before train')  
     
     args = parser.parse_args()
@@ -237,21 +237,23 @@ client_number_tier = (np.dot(args.client_number , client_type_percent))
 
 ########## network speed profile of clients
 
-def compute_delay(data_transmitted_client:float, net_speed:float, duration) -> float:
+def compute_delay(data_transmitted_client:float, net_speed:float, delay_coefficient:float, duration) -> float:
     net_delay = data_transmitted_client / net_speed
-    computation_delay = duration
+    computation_delay = duration * delay_coefficient
     total_delay = net_delay + computation_delay
-    delay_actual = total_delay
-    return delay_actual
+    simulated_delay = total_delay
+    return simulated_delay
 
 net_speed_list = np.array([5, 10, 20, 50, 100]) * 1024 ** 2  # MB/s: speed for transmitting data
+net_speed_list = np.array([10, 10, 10, 10, 10]) * 102400 ** 2  # MB/s: speed for transmitting data
 net_speed_weights = [0.4, 0.2, 0.2, 0.1, 0.1]  # weights for each speed level
 net_speed = random.choices(net_speed_list, weights=net_speed_weights, k=args.client_number)
 
 
 delay_coefficient_list = [1000,2000,2500,3000,10000]
 delay_coefficient = random.choices(delay_coefficient_list, k=args.client_number)
-delay_coefficient = [16,20,32,72,256] * 100
+delay_coefficient = [16,20,32,72,256] * 100  # coeffieient list for simulation computational power
+# delay_coefficient = [16,16,16,16,16] * 100 # to check and debug
 
 delay_coefficient = list(np.array(delay_coefficient)/10)
 
@@ -1569,7 +1571,7 @@ class SkinData(Dataset):
 # Train-test split          
 if args.dataset == "HAM10000":
     
-    df = df[1:10015:1]
+    df = df[1:10015:20]
     train, test = train_test_split(df, test_size = 0.2)
     
     train = train.reset_index()
@@ -1733,22 +1735,22 @@ for i in range(0, num_users): # one optimizer for every tier/ client
 # Federation takes place after certain local epochs in train() client-side
 # this epoch is global epoch, also known as rounds
 
-df_delay = pd.DataFrame()
+simulated_delay_historical_df = pd.DataFrame()
 start_time = time.time() 
 
-client_times = pd.DataFrame()
-# client_times = client_times.append(pd.DataFrame(np.zeros(num_users)).T, ignore_index = True)
+client_observed_times = pd.DataFrame()
+# client_observed_times = client_observed_times.append(pd.DataFrame(np.zeros(num_users)).T, ignore_index = True)
 torch.manual_seed(SEED)
-delay_actual= np.zeros(num_users)
-# delay_actual= np.empty(num_users)
-# delay_actual[:] = np.NaN
+simulated_delay= np.zeros(num_users)
+# simulated_delay= np.empty(num_users)
+# simulated_delay[:] = np.NaN
 
 for i in range(0, num_users): # maybe remove this part
     continue
     data_server_to_client = 0
     for k in w_glob_client_tier[client_tier[i]]:
         data_server_to_client += sys.getsizeof(w_glob_client_tier[client_tier[i]][k].storage())
-    delay_actual[i] = data_server_to_client / net_speed[i]
+    simulated_delay[i] = data_server_to_client / net_speed[i]
 
 
 for iter in range(epochs):
@@ -1803,11 +1805,8 @@ for iter in range(epochs):
     w_locals_client_tier = {i: [] for i in range(1, num_tiers+1)}
     
     # Initialize a numpy array to store client time
-    client_time = np.zeros(num_users)
+    client_observed_time = np.zeros(num_users)
     
-    # Log the client tier for each client in WandB
-    for i in range(0, num_users):
-        wandb.log({"Client{}_Tier".format(i): client_tier[i], "epoch": -1}, commit=False)
     
     # Compute the KD_beta value based on the current iteration number and update the WandB log
     args.KD_beta = args.KD_beta_init + (-args.KD_beta_init) * math.exp(-1. * args.KD_increase_factor * iter / args.rounds)
@@ -1818,16 +1817,24 @@ for iter in range(epochs):
       
     # mp.set_start_method('spawn')
     processes = []
+    
+    simulated_delay= np.zeros(num_users)
+    
     for idx in idxs_users:
         
+        # Log the client tier for each client in WandB
+        # for i in range(0, num_users):
+        wandb.log({"Client{}_Tier".format(idx): client_tier[idx], "epoch": iter}, commit=False)
+        
+        
         # calculate the delay to server send model to clients
-        delay_actual= np.zeros(num_users)
-        for i in range(0, num_users):
-            if i in idxs_users:
-                data_server_to_client = 0
-                for k in w_glob_client_tier[client_tier[i]]:
-                    data_server_to_client += sys.getsizeof(w_glob_client_tier[client_tier[i]][k].storage())
-                delay_actual[i] = data_server_to_client / net_speed[i]
+        # simulated_delay= np.zeros(num_users)
+        # for i in range(0, num_users):
+            # if i in idxs_users:
+        data_server_to_client = 0
+        for k in w_glob_client_tier[client_tier[idx]]:
+            data_server_to_client += sys.getsizeof(w_glob_client_tier[client_tier[idx]][k].storage())
+        simulated_delay[idx] = data_server_to_client / net_speed[idx]
             # wandb.log({"Client{}_Tier".format(i): client_tier[i], "epoch": iter}, commit=False)
             
             
@@ -1890,7 +1897,13 @@ for iter in range(epochs):
                 local.evaluate(net, ell= iter)
             net.load_state_dict(w_previous) # to return to previous state for other clients
             
-        client_time[idx] = duration
+        client_observed_time[idx] = duration
+        
+        # Divide the duration by 15 in the first round for the first client for warm up
+        if iter == 0 and idx == idxs_users[0]:
+            duration = duration / 15
+            
+        
         
         if not whether_GKT_local_loss:   # this is sum of model size of all clients sent to server
             for k in w_client:
@@ -1899,19 +1912,20 @@ for iter in range(epochs):
         
         data_transmitted_client = data_transmited_sl_client + data_transmited_fl_client
         
-        delay_actual[idx] = compute_delay(data_transmitted_client, net_speed[idx], duration)
+        simulated_delay[idx] += compute_delay(data_transmitted_client, net_speed[idx]
+                                              , delay_coefficient[idx], duration) # this is simulated delay
 
-        wandb.log({"Client{}_Actual_Delay".format(idx): delay_actual[idx], "epoch": iter}, commit=False)
+        wandb.log({"Client{}_Actual_Delay".format(idx): simulated_delay[idx], "epoch": iter}, commit=False)
         wandb.log({"Client{}_Data_Transmission(MB)".format(idx): data_transmitted_client/1024**2, "epoch": iter}, commit=False)
         wandb.log({"Client{}_Data_Transmission(MB)_Model_Parameters".format(idx): data_transmited_fl_client/1024**2, "epoch": iter}, commit=False)
         wandb.log({"Client{}_Data_Transmission(MB)_Intermediate_data".format(idx): data_transmited_sl_client/1024**2, "epoch": iter}, commit=False)
-    server_wait_time = (max(delay_actual * client_epoch) - min(delay_actual * client_epoch))
+    server_wait_time = (max(simulated_delay * client_epoch) - min(simulated_delay * client_epoch))
     wandb.log({"Server_wait_time": server_wait_time, "epoch": iter}, commit=False)
     wandb.log({"Total_training_time": total_time, "epoch": iter}, commit=False)
     if args.whether_FedAVG_base:
-        training_time = (max(delay_actual))
+        training_time = (max(simulated_delay))
     else:
-        training_time = (max(delay_actual) + max(times_in_server))
+        training_time = (max(simulated_delay) + max(times_in_server))
     total_training_time += training_time
     if iter == 0:
         first_training_time = training_time
@@ -1920,15 +1934,17 @@ for iter in range(epochs):
     time_train_server_train_all_list.append(time_train_server_train_all)
     time_train_server_train_all = 0
      
-    delay_actual[delay_actual==0] = np.nan  # convert zeros to nan, for when some clients not involved in the epoch
-    # df_delay = df_delay.append(pd.DataFrame(delay_actual).T, ignore_index = True)  # old version
-    df_delay = pd.concat([df_delay, pd.DataFrame(delay_actual).T], ignore_index=True)
-    # client_times = client_times.append(pd.DataFrame(client_time).T, ignore_index = True) # this is only time for training, old version
-    client_times = pd.concat([client_times, pd.DataFrame(client_time).T], ignore_index=True)
+    simulated_delay[simulated_delay==0] = np.nan  # convert zeros to nan, for when some clients not involved in the epoch
+    # simulated_delay_historical_df = simulated_delay_historical_df.append(pd.DataFrame(simulated_delay).T, ignore_index = True)  # old version
+    simulated_delay_historical_df = pd.concat([simulated_delay_historical_df, pd.DataFrame(simulated_delay).T], ignore_index=True)
+    # print(simulated_delay_historical_df)
+    # client_observed_times = client_observed_times.append(pd.DataFrame(client_observed_time).T, ignore_index = True) # this is only time for training, old version
+    client_observed_times = pd.concat([client_observed_times, pd.DataFrame(client_observed_time).T], ignore_index=True)
+    # print('client_observed_times: ',client_observed_times)
     client_epoch_last = client_epoch.copy()
     if not args.whether_FedAVG_base:
         
-        [client_tier, client_epoch, avg_tier_time_list, max_time_list, client_times] = dynamic_tier9(client_tier_all[:], df_delay, 
+        [client_tier, client_epoch, avg_tier_time_list, max_time_list, client_times] = dynamic_tier9(client_tier_all[:], simulated_delay_historical_df, 
                                                     num_tiers, server_wait_time, client_epoch,
                                                     time_train_server_train_all_list, num_users, iter,
                                                     sataset_size = sataset_size, avg_tier_time_list = avg_tier_time_list,
@@ -1960,7 +1976,7 @@ for iter in range(epochs):
         # client_sample = np.ones(num_users) # for HAM10000 is same number of samples in each client
         client_sample = calculate_client_samples(train_data_local_num_dict, idxs_users, args.dataset) # same order as appended weights
         
-    print(client_sample)
+    print('client_sample: ', client_sample)
     
     
     if args.whether_FedAVG_base:

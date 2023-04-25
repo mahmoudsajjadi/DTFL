@@ -1077,7 +1077,7 @@ def dynamic_tier9(client_tier, client_times, num_tiers, server_wait_time, client
                   time_train_server, num_users, step, **kwargs):
     # global avg_tier_time_list
     avg_tier_time = {}
-    memory_size = 20 # how many previous experiments look at for each tier in  one client
+    memory_size = 10 # how many previous experiments look at for each tier in  one client
     
     if kwargs:
         sataset_size = kwargs['sataset_size']
@@ -1118,13 +1118,13 @@ def dynamic_tier9(client_tier, client_times, num_tiers, server_wait_time, client
     # max_time = float(pd.DataFrame(max_time_list).ewm(com=0.5).mean().iloc[-1])
     # max_increase_training_time = (0.8 * max_time) #- 10000
     # max_time = max(client_tier_time[slow_index,num_tiers]) can be used for std of tmax
-    smooth_param = 0.5
+    # smooth_param = 0.5
     outliers = 3
     
     # tier_ratios = {1:9.1, 2:6.3, 3:5.1, 4:4.6, 5:3.3, 6:2.5, 7:1.0}
     tier_ratios = {1:11.48, 2:10.22, 3:8.39, 4:6.62, 5:4.94, 6:2.92, 7:1.0}
     
-    print('client_times:', client_times.iloc[-1])
+    print('mean_client_times:', client_times.mean())
 
     
     for c in client_tier.keys():
@@ -1133,19 +1133,20 @@ def dynamic_tier9(client_tier, client_times, num_tiers, server_wait_time, client
             
             mean = np.mean(client_tier_time[c,client_tier_last[c]])
             
-            if len(client_tier_time[c,client_tier_last[c]]) <= 3:
+            if len(client_tier_time[c,client_tier_last[c]]) <= 2:
                 client_tier[c] = client_tier_last[c]
                 
             else:   # significant change, del previous measurments
                 # std = np.std(client_tier_time[c,client_tier_last[c]][:-1]) # will be zero when only one sample
-                std = np.std(client_tier_time[c,client_tier_last[c]][1:]) # list indexing from end
+                std = np.std(client_tier_time[c,client_tier_last[c]][:]) # list indexing from end
                 
                 # mean = np.mean(client_tier_time[c,client_tier_last[c]][:-1]) # mean over previous 
-                mean = np.mean(client_tier_time[c,client_tier_last[c]][1:])
+                mean = np.mean(client_tier_time[c,client_tier_last[c]][:])
                 
                 min_interval = mean - outliers * std
                 max_interval = mean + outliers * std
                 print('time range client', c, 'min_interval',min_interval,'current time',client_times[c].iloc[-1],'max_interval',max_interval)
+                # print('client time in this tier', client_tier_time[c,client_tier_last[c]])
             
                 # if ((mean + outliers * std) > max_time or 
                 # ((client_times[c].iloc[-1] - mean) / std) > outliers): #(smooth_param * max_time): # compare to tmax # if sample is far at least 2 std
@@ -1200,8 +1201,8 @@ def dynamic_tier9(client_tier, client_times, num_tiers, server_wait_time, client
     print('slow_index',slow_index)
     
     manual_tier = 6
-    for i in range(num_users):
-        client_tier[i] = i % 7 + 1
+    # for i in range(num_users):
+    #     client_tier[i] = i % 7 + 1
     
     if num_users == 16 and False:
          client_tier = {0: 1,
