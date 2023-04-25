@@ -1086,16 +1086,18 @@ def dynamic_tier9(client_tier, client_times, num_tiers, server_wait_time, client
         idxs_users = kwargs['idxs_users']
     
     client_tier_last = client_tier[-1].copy()
-    avg_tier_client_time = {}
+    # avg_tier_client_time = {}
     client_tier_time = np.empty((num_users,num_tiers,memory_size))
     client_tier_time[:] = np.NaN
     client_tier_time = dict()
+    
+    # I should revise this , and list of training time of each client in each tier
     for i in range(0,num_users):   # this part calculate avg time of each tier each client in window
         # avg_tier_client_time_serie=pd.Series()
         # avg_tier_client_time_serie = pd.concat([avg_tier_client_time_serie, pd.Series(max_time * 10,index=[0])])
         count = 0
         for j in range(1, num_tiers+1): #range(1, num_tiers+1) range(num_tiers,0,-1)
-            avg_tier_client_time[i] = []
+            # avg_tier_client_time[i] = []
             client_tier_time[i,j] = []
             # for t in range(max(0,len(client_tier) - 5 * memory_size), len(client_tier)):
             for t in range(len(client_tier)-1,-1,-1):
@@ -1198,23 +1200,26 @@ def dynamic_tier9(client_tier, client_times, num_tiers, server_wait_time, client
     print('slow_index',slow_index)
     
     manual_tier = 6
+    for i in range(num_users):
+        client_tier[i] = i % 7 + 1
+    
     if num_users == 16 and False:
          client_tier = {0: 1,
-         1: 1,
-         2: 2,
-         3: 2,
-         5: 3,
-         6: 3,
-         4: 4,
-         7: 4,
-         8: 4,
-         9: 4,
-         10: 6,
-         11: 7,
+         1: 2,
+         2: 3,
+         3: 4,
+         4: 5,
+         5: 6,
+         6: 7,
+         7: 1,
+         8: 2,
+         9: 3,
+         10: 4,
+         11: 5,
          12: 6,
-         13: 6,
-         14: 7,
-         15: 7}
+         13: 7,
+         14: 1,
+         15: 2}
     elif num_users == 16 and False:
         for i in range(0,num_users):
             client_tier[i] = (((step + i * 10 )//10) % num_tiers) + 1

@@ -99,8 +99,8 @@ def add_args(parser):
     
     # Optimization related arguments
     parser.add_argument('--lr', default=0.001, type=float)
-    parser.add_argument('--lr_factor', default=0.9, type=float)
-    parser.add_argument('--lr_patience', default=100, type=float)
+    parser.add_argument('--lr_factor', default=0.95, type=float)
+    parser.add_argument('--lr_patience', default=10, type=float)
     parser.add_argument('--lr_min', default=0, type=float)
     parser.add_argument('--whether_dynamic_lr_client', default=1, type=int)
     parser.add_argument('--optimizer', default="Adam", type=str, help='optimizer: SGD, Adam, etc.')
@@ -112,19 +112,19 @@ def add_args(parser):
     
     
     # Data loading and preprocessing related arguments
-    parser.add_argument('--dataset', type=str, default='HAM10000', metavar='N',
+    parser.add_argument('--dataset', type=str, default='cifar10', metavar='N',
                         help='dataset used for training')
     parser.add_argument('--data_dir', type=str, default='./data', help='data directory')
     parser.add_argument('--partition_method', type=str, default='hetero', metavar='N',
                         help='how to partition the dataset on local workers')
-    parser.add_argument('--partition_alpha', type=float, default=1000000, metavar='PA',
+    parser.add_argument('--partition_alpha', type=float, default=10 ** 15, metavar='PA',
                         help='partition alpha (default: 0.5)')
         
     # Federated learning related arguments
     parser.add_argument('--client_epoch', default=1, type=int)
     parser.add_argument('--client_number', type=int, default=10, metavar='NN',
                         help='number of workers in a distributed cluster')
-    parser.add_argument('--batch_size', type=int, default=100, metavar='N',
+    parser.add_argument('--batch_size', type=int, default=90, metavar='N',
                         help='input batch size for training (default: 64)')
     parser.add_argument('--rounds', default=200, type=int)
     parser.add_argument('--whether_local_loss', default=True, type=bool)
@@ -159,14 +159,14 @@ def add_args(parser):
                         help='version of aggregation')
     parser.add_argument('--global_model', type=int, default=0 , metavar='N',
                         help='global model for testing the method')
-    parser.add_argument('--test_before_train', type=int, default=1 , metavar='N',  # by this we can check the accuracy of global model
+    parser.add_argument('--test_before_train', type=int, default=0 , metavar='N',  # by this we can check the accuracy of global model
                         help='test before train')  
     
     args = parser.parse_args()
     return args
 
 DYNAMIC_LR_THRESHOLD = 0.0001
-DEFAULT_FRAC = 1.0        # participation of clients; if 1 then 100% clients participate in SFLV1
+DEFAULT_FRAC = 0.2        # participation of clients; if 1 then 100% clients participate in SFLV1
 
 
 NUM_CPUs = os.cpu_count()
@@ -1173,7 +1173,8 @@ def evaluate_server(fx_client, y, idx, len_batch, ell):
             batch_loss_test = []
             count2 = 0
             
-            prGreen('Client{} Test =>                   \tAcc: {:.3f} \tLoss: {:.4f}'.format(idx, acc_avg_test, loss_avg_test))
+            # prGreen('Client{} Test =>                   \tAcc: {:.3f} \tLoss: {:.4f}'.format(idx, acc_avg_test, loss_avg_test))
+            prGreen('Update Model Test =>                   \tAcc: {:.3f} \tLoss: {:.4f}'.format(acc_avg_test, loss_avg_test))
             #prGreen('Client{} Test =>                   \tAcc: {:.3f} \tLoss: {:.4f}'.format(idx, acc_avg_test, loss_avg_test))
             wandb.log({"Client{}_Test_Accuracy".format(idx): acc_avg_test, "epoch": 22}, commit=False)
 
@@ -1467,11 +1468,11 @@ class Client(object):
                         .format(self.idx, epoch_acc[-1], epoch_loss[-1])) 
                 
                 return sum(epoch_loss) / len(epoch_loss), sum(epoch_acc) / len(epoch_acc)
-            #prRed('Client{} Test => Epoch: {}'.format(self.idx, ell))
+            
             
         return 
 
-    def evaluate_glob(self, net, ell):
+    def evaluate_glob(self, net, ell): # I wrote this part
         net.eval()
         epoch_acc = []
         epoch_loss = []
@@ -1743,6 +1744,7 @@ delay_actual= np.zeros(num_users)
 # delay_actual[:] = np.NaN
 
 for i in range(0, num_users): # maybe remove this part
+    continue
     data_server_to_client = 0
     for k in w_glob_client_tier[client_tier[i]]:
         data_server_to_client += sys.getsizeof(w_glob_client_tier[client_tier[i]][k].storage())
@@ -1817,6 +1819,19 @@ for iter in range(epochs):
     # mp.set_start_method('spawn')
     processes = []
     for idx in idxs_users:
+        
+        # calculate the delay to server send model to clients
+        delay_actual= np.zeros(num_users)
+        for i in range(0, num_users):
+            if i in idxs_users:
+                data_server_to_client = 0
+                for k in w_glob_client_tier[client_tier[i]]:
+                    data_server_to_client += sys.getsizeof(w_glob_client_tier[client_tier[i]][k].storage())
+                delay_actual[i] = data_server_to_client / net_speed[i]
+            # wandb.log({"Client{}_Tier".format(i): client_tier[i], "epoch": iter}, commit=False)
+            
+            
+            
         data_transmited_fl_client = 0
         time_train_test_s = time.time()
         if whether_multi_tier:
@@ -1861,7 +1876,7 @@ for iter in range(epochs):
         w_locals_client_tier[client_tier[idx]].append(copy.deepcopy(w_client))
         
         # Testing -------------------  # why for testing do not use last weight update of that client?? # at this point it use last upate of weights
-        if args.test_before_train == 0:
+        if args.test_before_train == 0 and idx == idxs_users[-1]:
             net = copy.deepcopy(net_glob_client)
             w_previous = copy.deepcopy(net.state_dict())  # to test for updated model
             net.load_state_dict(w_client)
@@ -1924,13 +1939,7 @@ for iter in range(epochs):
                                                     
     client_tier_all.append(copy.deepcopy(client_tier))
     
-    delay_actual= np.zeros(num_users)
-    for i in range(0, num_users):
-        data_server_to_client = 0
-        for k in w_glob_client_tier[client_tier[i]]:
-            data_server_to_client += sys.getsizeof(w_glob_client_tier[client_tier[i]][k].storage())
-        delay_actual[i] = data_server_to_client / net_speed[i]
-        # wandb.log({"Client{}_Tier".format(i): client_tier[i], "epoch": iter}, commit=False)
+
     
     if args.version == 1:
         for i in client_tier.keys():  # assign each server-side to its tier model
@@ -1950,6 +1959,8 @@ for iter in range(epochs):
     else:
         # client_sample = np.ones(num_users) # for HAM10000 is same number of samples in each client
         client_sample = calculate_client_samples(train_data_local_num_dict, idxs_users, args.dataset) # same order as appended weights
+        
+    print(client_sample)
     
     
     if args.whether_FedAVG_base:
