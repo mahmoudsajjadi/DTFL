@@ -99,8 +99,8 @@ def add_args(parser):
     
     # Optimization related arguments
     parser.add_argument('--lr', default=0.001, type=float)
-    parser.add_argument('--lr_factor', default=0.95, type=float)
-    parser.add_argument('--lr_patience', default=10, type=float)
+    parser.add_argument('--lr_factor', default=0.9, type=float)
+    parser.add_argument('--lr_patience', default=20, type=float)
     parser.add_argument('--lr_min', default=0, type=float)
     parser.add_argument('--whether_dynamic_lr_client', default=1, type=int)
     parser.add_argument('--optimizer', default="Adam", type=str, help='optimizer: SGD, Adam, etc.')
@@ -117,7 +117,7 @@ def add_args(parser):
     parser.add_argument('--data_dir', type=str, default='./data', help='data directory')
     parser.add_argument('--partition_method', type=str, default='hetero', metavar='N',
                         help='how to partition the dataset on local workers')
-    parser.add_argument('--partition_alpha', type=float, default=10 ** 15, metavar='PA',
+    parser.add_argument('--partition_alpha', type=float, default=1000000, metavar='PA',
                         help='partition alpha (default: 0.5)')
         
     # Federated learning related arguments
@@ -159,14 +159,14 @@ def add_args(parser):
                         help='version of aggregation')
     parser.add_argument('--global_model', type=int, default=0 , metavar='N',
                         help='global model for testing the method')
-    parser.add_argument('--test_before_train', type=int, default=0 , metavar='N',  # by this we can check the accuracy of global model
+    parser.add_argument('--test_before_train', type=int, default=1 , metavar='N',  # by this we can check the accuracy of global model
                         help='test before train')  
     
     args = parser.parse_args()
     return args
 
 DYNAMIC_LR_THRESHOLD = 0.0001
-DEFAULT_FRAC = 0.2        # participation of clients; if 1 then 100% clients participate in SFLV1
+DEFAULT_FRAC = 0.1        # participation of clients; if 1 then 100% clients participate in SFLV1
 
 
 NUM_CPUs = os.cpu_count()
@@ -1569,7 +1569,7 @@ class SkinData(Dataset):
 # Train-test split          
 if args.dataset == "HAM10000":
     
-    df = df[1:10015:200]
+    df = df[1:10015:1]
     train, test = train_test_split(df, test_size = 0.2)
     
     train = train.reset_index()
