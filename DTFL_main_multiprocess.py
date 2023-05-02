@@ -47,14 +47,12 @@ from model.resnet110_7t import resnet56_SFL_tier_7
 from model.resnet110_7t import resnet56_SFL_fedavg_base
 from model.resnet_pretrained import resnet56_pretrained
 # from model.resnet101 import resnet101_local_tier
-from utils.loss import loss_dcor
-from utils.loss import distance_corr
+from utils.loss import PatchShuffle
 from utils.loss import dis_corr
 from utils.fedavg import multi_fedavg
 from utils.fedavg import aggregated_fedavg
 
 from utils.dynamic_tier import dynamic_tier9
-from utils.dynamic_tier import dqn_agent
 from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar10
 from api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
 from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
@@ -122,7 +120,7 @@ def add_args(parser):
         
     # Federated learning related arguments
     parser.add_argument('--client_epoch', default=1, type=int)
-    parser.add_argument('--client_number', type=int, default=20, metavar='NN',
+    parser.add_argument('--client_number', type=int, default=10, metavar='NN',
                         help='number of workers in a distributed cluster')
     parser.add_argument('--batch_size', type=int, default=95, metavar='N',
                         help='input batch size for training (default: 64)')
@@ -142,12 +140,13 @@ def add_args(parser):
     parser.add_argument('--KD_beta_init', default=1.0, type=float)    # (1-alpha) CE + alpha DCOR + beta KD(client-side)
     parser.add_argument('--KD_increase_factor', default=500.0, type=float)  # if more, it become like KD-init faster
     parser.add_argument('--whether_distillation_on_the_server', default=0, type=int)
-    parser.add_argument('--whether_distillation_on_clients', default=True, type=bool)
+    parser.add_argument('--whether_distillation_on_clients', default=False, type=bool)
     parser.add_argument('--whether_GKT_local_loss', default=False, type=bool)
     
     # Privacy related arguments
-    parser.add_argument('--whether_dcor', default=True, type=bool)
+    parser.add_argument('--whether_dcor', default=False, type=bool)
     parser.add_argument('--dcor_coefficient', default=0.5, type=float)  # same as alpha in paper
+    parser.add_argument('--PatchShuffle', default=1, type=int)  
     parser.add_argument('--whether_pretrained_on_client', default=0, type=int) # from fedgkt
     parser.add_argument('--whether_pretrained', default=0, type=int)  # from https://github.com/chenyaofo/pytorch-cifar-models
     
@@ -166,7 +165,7 @@ def add_args(parser):
     return args
 
 DYNAMIC_LR_THRESHOLD = 0.0001
-DEFAULT_FRAC = 0.1        # participation of clients; if 1 then 100% clients participate in SFLV1
+DEFAULT_FRAC = 1.0        # participation of clients; if 1 then 100% clients participate in SFLV1
 
 
 NUM_CPUs = os.cpu_count()
@@ -244,9 +243,9 @@ def compute_delay(data_transmitted_client:float, net_speed:float, delay_coeffici
     simulated_delay = total_delay
     return simulated_delay
 
-net_speed_list = np.array([5, 10, 20, 50, 100]) * 1024 ** 2  # MB/s: speed for transmitting data
-net_speed_list = np.array([10, 10, 10, 10, 10]) * 102400 ** 2  # MB/s: speed for transmitting data
-net_speed_weights = [0.4, 0.2, 0.2, 0.1, 0.1]  # weights for each speed level
+net_speed_list = np.array([100, 200, 500]) * 1024 ** 2  # MB/s: speed for transmitting data
+# net_speed_list = np.array([10, 10, 10, 10, 10]) * 102400 ** 2  # MB/s: speed for transmitting data
+net_speed_weights = [0.5, 0.25, 0.25]  # weights for each speed level
 net_speed = random.choices(net_speed_list, weights=net_speed_weights, k=args.client_number)
 
 
@@ -258,6 +257,7 @@ delay_coefficient = [16,20,32,72,256] * 100  # coeffieient list for simulation c
 delay_coefficient = list(np.array(delay_coefficient)/10)
 
 delay_coefficient_list = [16,20,32,72,256]
+delay_coefficient_list = [16,16,16,16,16]
 delay_coefficient_list = list(np.array(delay_coefficient_list)/10)
 
 
@@ -1327,7 +1327,17 @@ class Client(object):
                         extracted_features, fx = net(images)
                     else:
                         fx = net(images)
-                    client_fx = fx.clone().detach().requires_grad_(True)
+                    
+                    if args.PatchShuffle == 1:
+                        fx_shuffled = fx.clone().detach().requires_grad_(False)
+                        fx_shuffled = PatchShuffle(fx_shuffled)
+                        client_fx = fx_shuffled.clone().detach().requires_grad_(True)
+                        # client_fx = PatchShuffle(client_fx)
+                    else:
+                        client_fx = fx.clone().detach().requires_grad_(True)
+                    
+                    
+                        
                     # fx.backward(fx) # backpropagation
                     # hidden.detach_()
                     # Sending activations to server and receiving gradients from server
@@ -1361,6 +1371,7 @@ class Client(object):
                             Dcor_value = dis_corr(images,fx)
                             loss = (1 - dcor_coefficient) * loss + dcor_coefficient * Dcor_value
                             Dcorloss_client_train.append(((dcor_coefficient) * Dcor_value))   
+                            
 
                         loss.backward()
     
@@ -1878,6 +1889,8 @@ for iter in range(epochs):
             acc_locals_train.append(copy.deepcopy(acc_train))
         else:
             [w_client, duration, data_transmited_sl_client] = local.train(net = copy.deepcopy(net_glob_client).to(device))
+            # with mp.Pool(processes=len(idxs_users)) as pool:
+            #     results = [pool.apply_async(local.train, args=(Client(net_glob_client, idx, lr, device, dataset_train=dataset_train, dataset_test=dataset_test, idxs=dict_users[idx], idxs_test=dict_users_test[idx]), net_glob_client)) for idx in idxs_users]
             
         w_locals_client.append(copy.deepcopy(w_client))
         w_locals_client_tier[client_tier[idx]].append(copy.deepcopy(w_client))
@@ -1976,7 +1989,7 @@ for iter in range(epochs):
         # client_sample = np.ones(num_users) # for HAM10000 is same number of samples in each client
         client_sample = calculate_client_samples(train_data_local_num_dict, idxs_users, args.dataset) # same order as appended weights
         
-    print('client_sample: ', client_sample)
+    # print('client_sample: ', client_sample)
     
     
     if args.whether_FedAVG_base:
