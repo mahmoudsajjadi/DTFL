@@ -97,7 +97,7 @@ def add_args(parser):
     
     # Optimization related arguments
     parser.add_argument('--lr', default=0.001, type=float)
-    parser.add_argument('--lr_factor', default=0.9, type=float)
+    parser.add_argument('--lr_factor', default=0.8, type=float)
     parser.add_argument('--lr_patience', default=20, type=float)
     parser.add_argument('--lr_min', default=0, type=float)
     parser.add_argument('--whether_dynamic_lr_client', default=1, type=int)
@@ -120,9 +120,9 @@ def add_args(parser):
         
     # Federated learning related arguments
     parser.add_argument('--client_epoch', default=1, type=int)
-    parser.add_argument('--client_number', type=int, default=10, metavar='NN',
+    parser.add_argument('--client_number', type=int, default=100, metavar='NN',
                         help='number of workers in a distributed cluster')
-    parser.add_argument('--batch_size', type=int, default=95, metavar='N',
+    parser.add_argument('--batch_size', type=int, default=64, metavar='N',
                         help='input batch size for training (default: 64)')
     parser.add_argument('--rounds', default=300, type=int)
     parser.add_argument('--whether_local_loss', default=True, type=bool)
@@ -146,7 +146,7 @@ def add_args(parser):
     # Privacy related arguments
     parser.add_argument('--whether_dcor', default=False, type=bool)
     parser.add_argument('--dcor_coefficient', default=0.5, type=float)  # same as alpha in paper
-    parser.add_argument('--PatchShuffle', default=1, type=int)  
+    parser.add_argument('--PatchShuffle', default=0, type=int)  
     parser.add_argument('--whether_pretrained_on_client', default=0, type=int) # from fedgkt
     parser.add_argument('--whether_pretrained', default=0, type=int)  # from https://github.com/chenyaofo/pytorch-cifar-models
     
@@ -165,7 +165,7 @@ def add_args(parser):
     return args
 
 DYNAMIC_LR_THRESHOLD = 0.0001
-DEFAULT_FRAC = 1.0        # participation of clients; if 1 then 100% clients participate in SFLV1
+DEFAULT_FRAC = 0.1        # participation of clients; if 1 then 100% clients participate in SFLV1
 
 
 NUM_CPUs = os.cpu_count()
@@ -237,30 +237,34 @@ client_number_tier = (np.dot(args.client_number , client_type_percent))
 ########## network speed profile of clients
 
 def compute_delay(data_transmitted_client:float, net_speed:float, delay_coefficient:float, duration) -> float:
+    # print(delay_coefficient)
     net_delay = data_transmitted_client / net_speed
     computation_delay = duration * delay_coefficient
     total_delay = net_delay + computation_delay
     simulated_delay = total_delay
     return simulated_delay
 
-net_speed_list = np.array([100, 200, 500]) * 1024 ** 2  # MB/s: speed for transmitting data
+net_speed_list = np.array([100, 200, 500]) * 1024000 ** 2  # MB/s: speed for transmitting data
 # net_speed_list = np.array([10, 10, 10, 10, 10]) * 102400 ** 2  # MB/s: speed for transmitting data
 net_speed_weights = [0.5, 0.25, 0.25]  # weights for each speed level
 net_speed = random.choices(net_speed_list, weights=net_speed_weights, k=args.client_number)
 
+net_speed_list = list(np.array([100,100,50,50,10]) * 1024 ** 2)
+net_speed = net_speed_list * (args.client_number // 5 + 1)
 
-delay_coefficient_list = [1000,2000,2500,3000,10000]
-delay_coefficient = random.choices(delay_coefficient_list, k=args.client_number)
-delay_coefficient = [16,20,32,72,256] * 100  # coeffieient list for simulation computational power
+# delay_coefficient_list = [1000,2000,2500,3000,10000]
+# delay_coefficient = random.choices(delay_coefficient_list, k=args.client_number)
+# delay_coefficient = [16,20,32,72,256] * (args.client_number // 5 + 1)  # coeffieient list for simulation computational power
 # delay_coefficient = [16,16,16,16,16] * 100 # to check and debug
 
-delay_coefficient = list(np.array(delay_coefficient)/10)
+# delay_coefficient = list(np.array(delay_coefficient)/10)
 
 delay_coefficient_list = [16,20,32,72,256]
-delay_coefficient_list = [16,16,16,16,16]
+#delay_coefficient_list = [16,16,16,16,16]
 delay_coefficient_list = list(np.array(delay_coefficient_list)/10)
 
-
+delay_coefficient = delay_coefficient_list * (args.client_number // 5 + 1)  # coeffieient list for simulation computational power
+delay_coefficient = list(np.array(delay_coefficient))
 
 ############### Client profiles definitions ###############
 client_cpus_gpus = [(0, 0.5, 0), (1, 0.5, 0), (2, 0, 1), (3, 2, 0), (4, 1, 0),

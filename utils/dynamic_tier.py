@@ -390,9 +390,8 @@ def dynamic_tier9(client_tier, client_times, num_tiers, server_wait_time, client
     # tier_ratios = {1:9.1, 2:6.3, 3:5.1, 4:4.6, 5:3.3, 6:2.5, 7:1.0}
     tier_ratios = {1:11.48, 2:10.22, 3:8.39, 4:6.62, 5:4.94, 6:2.92, 7:1.0}
     
-    print('mean_client_times:', client_times.mean())
-
-    
+    print('mean_client_times:', client_times.ewm(com=0.5).mean()[-1:])
+        
     for c in client_tier.keys():
         if c in idxs_users:
             client_tier[c] = client_tier_last[c]
@@ -438,7 +437,7 @@ def dynamic_tier9(client_tier, client_times, num_tiers, server_wait_time, client
                 else :
                     if ((max_interval) < max_time / tier_ratios[max(client_tier_last[c]-1,1)] * tier_ratios[client_tier_last[c]]):
                         client_tier[c] = max(client_tier_last[c] - 1, 1)
-                        print(f'client{c} increase tier')
+                        print(f'assign client{c} to a larger model - tier')
                         if len(client_tier_time[c,client_tier[c]]) >= 1:
                             if len(client_tier_time[c,client_tier[c]]) != 1: # to see if next tier time is more than tmax
                                 std = np.std(client_tier_time[c,client_tier[c]])
@@ -453,7 +452,7 @@ def dynamic_tier9(client_tier, client_times, num_tiers, server_wait_time, client
                     elif (mean + outliers * std) > max_time: # tier def. is diff. from the paper
                         client_tier[c] = min(client_tier_last[c] + 1, num_tiers)
                         if client_tier[c] != client_tier_last[c]:
-                            print(f'client{c} reduce tier')
+                            print(f'assign client{c} to a smaller model - tier')
 
                             
                                             # # compare current time to assign tier
@@ -492,7 +491,7 @@ def dynamic_tier9(client_tier, client_times, num_tiers, server_wait_time, client
          15: 2}
     elif num_users == 16 and False:
         for i in range(0,num_users):
-            client_tier[i] = (((step + i * 10 )//10) % (num_tiers - 1 )) + 1 + 1
+            client_tier[i] = (((step + i * 10 )//10) % (num_tiers - 2 )) + 1 + 2
     elif False:
          for i in range(0,100):    
              client_tier[i] = manual_tier
