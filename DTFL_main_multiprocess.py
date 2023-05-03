@@ -124,7 +124,7 @@ def add_args(parser):
                         help='number of workers in a distributed cluster')
     parser.add_argument('--batch_size', type=int, default=64, metavar='N',
                         help='input batch size for training (default: 64)')
-    parser.add_argument('--rounds', default=300, type=int)
+    parser.add_argument('--rounds', default=1000, type=int)
     parser.add_argument('--whether_local_loss', default=True, type=bool)
     parser.add_argument('--whether_local_loss_v2', default=False, type=bool)
     parser.add_argument('--whether_FedAVG_base', default=False, type=bool) # this is for base line of fedavg

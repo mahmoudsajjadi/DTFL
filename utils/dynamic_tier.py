@@ -390,7 +390,7 @@ def dynamic_tier9(client_tier, client_times, num_tiers, server_wait_time, client
     # tier_ratios = {1:9.1, 2:6.3, 3:5.1, 4:4.6, 5:3.3, 6:2.5, 7:1.0}
     tier_ratios = {1:11.48, 2:10.22, 3:8.39, 4:6.62, 5:4.94, 6:2.92, 7:1.0}
     
-    print('mean_client_times:', client_times.ewm(com=0.5).mean()[-1:])
+    print('mean_client_times:\n', client_times.ewm(com=0.5).mean()[-1:].to_string(float_format='%.2f'))
         
     for c in client_tier.keys():
         if c in idxs_users:
