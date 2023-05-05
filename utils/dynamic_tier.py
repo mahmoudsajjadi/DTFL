@@ -13,12 +13,15 @@ def index_of_greatest_smaller(lst, max_time):
         return None
     
     # Find the smallest number in greater_lst and return its index in lst
-    smallest = max(greater_lst)
-    return list(lst).index(smallest) + 1
+    # smallest = max(greater_lst)
+    
+    # find the one has most layers at the client side
+    smallest = greater_lst[0]
+    return list(lst).index(smallest) + 1, smallest
 
 def find_straggler(client_tier_time : list, num_users: int, client_tier_last: list,
                    net_speed: list, data_transmitted_client_all: list, tier_ratios: dict,
-                   tier_intermediate_data: dict) -> int:
+                   tier_intermediate_data_profile: dict) -> int:
     '''
     
     Parameters
@@ -36,13 +39,23 @@ def find_straggler(client_tier_time : list, num_users: int, client_tier_last: li
     
     clients_min_estimation_time = []
     for c in range(num_users):
+        # Compute total time, transmission time, and client computation time
         total_time = np.mean(client_tier_time[c,client_tier_last[c]])
         transmission_time = data_transmitted_client_all[c] / net_speed[c]
         clinet_computaion_time = total_time - transmission_time
-        client_estimation_time_all_tiers = (list(np.array([value for value in tier_ratios.values()]) * clinet_computaion_time / tier_ratios[client_tier_last[c]]) # computation estimation
-                                            + np.array([value for value in tier_intermediate_data.values()]) / net_speed[c] ) # commmunication estimation
+        
+        # Compute computation and communication estimation for each tier
+        tier_computation_estimation = np.array([value for value in tier_ratios.values()]) * clinet_computaion_time / tier_ratios[client_tier_last[c]]
+        tier_communication_estimation = np.array([value for value in tier_intermediate_data_profile.values()]) / net_speed[c]
+        client_estimation_time_all_tiers = list(tier_computation_estimation + tier_communication_estimation)
+
+
+        
+        # client_estimation_time_all_tiers = (list(np.array([value for value in tier_ratios.values()]) * clinet_computaion_time / tier_ratios[client_tier_last[c]]) # computation estimation
+        #                                     + np.array([value for value in tier_intermediate_data_profile.values()]) / net_speed[c] ) # commmunication estimation
         
         clients_min_estimation_time.append(min(client_estimation_time_all_tiers))
+        print(client_estimation_time_all_tiers)
     max_estimation_time = max(clients_min_estimation_time)
     
     return clients_min_estimation_time.index(max_estimation_time), max_estimation_time
@@ -583,6 +596,7 @@ def tier_scheduler(client_tier, client_times, num_tiers, server_wait_time, clien
         idxs_users = kwargs['idxs_users']
         data_transmitted_client_all = kwargs['data_transmitted_client_all']
         net_speed = kwargs['net_speed']
+        # data_transmitted_client_all =  = kwargs['data_transmitted_client_all']
         
     
     
@@ -611,27 +625,22 @@ def tier_scheduler(client_tier, client_times, num_tiers, server_wait_time, clien
     client_tier = client_tier[-1].copy()
     # max_client_list = [np.nanmean(avg_tier_client_time[i]) for i in avg_tier_client_time.keys()]
     max_client_list = [np.nanmean(client_tier_time[i,num_tiers]) for i in range(0,num_users)]
-    # max_time = np.nanmax(max_client_list) # T_max is max of tier max of all clients
-    # max_time = float(np.nanmax(max_client_list) if not np.isnan(np.nanmax(max_client_list)) else max_time_list.iloc[-1]) # if not tier7 avilable
-    # slow_index = max_client_list.index(max_time) # index of slowest client
-    # slow_index = int(max_client_list.index(max_time) if not np.isnan(np.nanmax(max_client_list)) else 1) # if not tier7 avilable
-    # max_time_list.loc[len(max_time_list)] = max_time
-    # max_time = float(pd.DataFrame(max_time_list).ewm(com=0.5).mean().iloc[-1])
-    # max_increase_training_time = (0.8 * max_time) #- 10000
-    # max_time = max(client_tier_time[slow_index,num_tiers]) can be used for std of tmax
-    # smooth_param = 0.5
+
     outliers = 3
+    # Define a threshold for time difference as a fraction of the estimated time
+    time_diff_threshold = 0.05
     
     # tier_ratios = {1:9.1, 2:6.3, 3:5.1, 4:4.6, 5:3.3, 6:2.5, 7:1.0}
     tier_ratios = {1:11.48, 2:10.22, 3:8.39, 4:6.62, 5:4.94, 6:2.92, 7:1.0} # should update for each experiemtns
     MB = 1024 ** 2
-    tier_intermediate_data = {1:312 * MB, 2:312 * MB, 3:620 * MB, 4:620 * MB, 5:1250 * MB, 6:1250 * MB, 7:312 * MB}
+    tier_intermediate_data_profile = {1:314.5 * MB, 2:313.9 * MB, 3:625.6 * MB, 4:625.2 * MB, 5:1250.1 * MB, 6:1250.3 * MB, 7:312.6 * MB}
+    # tier_intermediate_data = data_transmitted_client_all
     
     print('mean_client_times:\n', client_times.ewm(com=0.5).mean()[-1:].to_string(float_format='%.2f'))
     
     straggler_index, max_estimation_time = find_straggler(client_tier_time, num_users, client_tier_last,
                        net_speed, data_transmitted_client_all, tier_ratios,
-                       tier_intermediate_data)
+                       tier_intermediate_data_profile)
     max_time = max_estimation_time
     max_time_list.loc[len(max_time_list)] = max_time
         
@@ -653,23 +662,35 @@ def tier_scheduler(client_tier, client_times, num_tiers, server_wait_time, clien
                 
                 min_interval = mean - outliers * std
                 max_interval = mean + outliers * std
-                print('time range client', c, 'min_interval',min_interval,'current time',client_times[c].iloc[-1],'max_interval',max_interval)
+                # print('time range client', c, 'min_interval',min_interval,'current time',client_times[c].iloc[-1],'max_interval',max_interval)
 
                     
                 if not ((min_interval) < client_times[c].iloc[-1] < (max_interval)): # if this is far from previous delete it
                     # client_times[c] = np.NaN
                     client_times[c][0:len(client_times[c])-1]  = np.NaN # delete only previous measurements
-                    print('change in client', c)
+                    print('dynamic change in client:', c)
                     mean = client_times[c].iloc[-1]
                     
 
                 else:
-                    clinet_computaion_time = client_times[c].iloc[-1] - data_transmitted_client_all[c] / net_speed[c]
+                    clinet_computaion_time = np.mean(client_tier_time[c,client_tier_last[c]]) - data_transmitted_client_all[c] / net_speed[c]
                     client_estimation_time_all_tiers = (list(np.array([value for value in tier_ratios.values()]) * clinet_computaion_time / tier_ratios[client_tier_last[c]]) # computation estimation
-                                                        + np.array([value for value in tier_intermediate_data.values()]) / net_speed[c] ) # commmunication estimation
-                    client_tier[c] = index_of_greatest_smaller(client_estimation_time_all_tiers, max_time)
+                                                        + np.array([value for value in tier_intermediate_data_profile.values()]) / net_speed[c] ) # commmunication estimation
+                    client_tier[c], estimated_time = index_of_greatest_smaller(client_estimation_time_all_tiers, max_time)
                     
-                    print(f'assign client {c} to tier {7 - client_tier[c] + 1}')
+                    # not change if time dif is not large
+                    if abs(estimated_time - np.mean(client_tier_time[c,client_tier_last[c]])) < estimated_time / 10:
+                        client_tier[c] = client_tier_last[c]
+                        
+                    
+                    # Check if the time difference is large enough to trigger a change in client tier
+                    estimated_time_diff = abs(estimated_time - np.mean(client_tier_time[c, client_tier_last[c]]))
+                    if estimated_time_diff < estimated_time * time_diff_threshold:
+                        # Keep the current client tier if the time difference is not large enough
+                        client_tier[c] = client_tier_last[c]
+                        
+                    
+                    # print(f'assign client {c} to tier {7 - client_tier[c] + 1}')
                     
                     
                        

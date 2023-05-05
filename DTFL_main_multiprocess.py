@@ -250,7 +250,7 @@ net_speed_list = np.array([100, 200, 500]) * 1024000 ** 2  # MB/s: speed for tra
 net_speed_weights = [0.5, 0.25, 0.25]  # weights for each speed level
 net_speed = random.choices(net_speed_list, weights=net_speed_weights, k=args.client_number)
 
-net_speed_list = list(np.array([100,100,50,50,10]) * 1024 ** 2)
+net_speed_list = list(np.array([100,50,50,50,10]) * 1024 ** 2)
 #net_speed_list = list(np.array([10,10,10,10,10]) * 10240000 ** 2)
 net_speed = net_speed_list * (args.client_number // 5 + 1)
 
@@ -261,7 +261,7 @@ net_speed = net_speed_list * (args.client_number // 5 + 1)
 
 # delay_coefficient = list(np.array(delay_coefficient)/10)
 
-delay_coefficient_list = [16,20,32,72,256]
+delay_coefficient_list = [16,22,54,72,256]
 #delay_coefficient_list = [16,16,16,16,16]
 delay_coefficient_list = list(np.array(delay_coefficient_list)/4)
 
@@ -1923,7 +1923,7 @@ for iter in range(epochs):
         
         # Divide the duration by 15 in the first round for the first client for warm up
         if iter == 0 and idx == idxs_users[0]:
-            duration = duration / 15
+            duration = duration / 30
             
         
         
@@ -1968,7 +1968,7 @@ for iter in range(epochs):
     client_epoch_last = client_epoch.copy()
     if not args.whether_FedAVG_base:
         
-        [client_tier, client_epoch, avg_tier_time_list, max_time_list, client_times] = dynamic_tier9(client_tier_all[:], simulated_delay_historical_df, 
+        [client_tier, client_epoch, avg_tier_time_list, max_time_list, client_times] = tier_scheduler(client_tier_all[:], simulated_delay_historical_df, 
                                                     num_tiers, server_wait_time, client_epoch,
                                                     time_train_server_train_all_list, num_users, iter,
                                                     sataset_size = sataset_size, avg_tier_time_list = avg_tier_time_list,
