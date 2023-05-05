@@ -53,6 +53,7 @@ from utils.fedavg import multi_fedavg
 from utils.fedavg import aggregated_fedavg
 
 from utils.dynamic_tier import dynamic_tier9
+from utils.dynamic_tier import tier_scheduler
 from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar10
 from api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
 from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
@@ -245,11 +246,12 @@ def compute_delay(data_transmitted_client:float, net_speed:float, delay_coeffici
     return simulated_delay
 
 net_speed_list = np.array([100, 200, 500]) * 1024000 ** 2  # MB/s: speed for transmitting data
-# net_speed_list = np.array([10, 10, 10, 10, 10]) * 102400 ** 2  # MB/s: speed for transmitting data
+#net_speed_list = np.array([10, 10, 10, 10, 10]) * 102400 ** 2  # MB/s: speed for transmitting data
 net_speed_weights = [0.5, 0.25, 0.25]  # weights for each speed level
 net_speed = random.choices(net_speed_list, weights=net_speed_weights, k=args.client_number)
 
 net_speed_list = list(np.array([100,100,50,50,10]) * 1024 ** 2)
+#net_speed_list = list(np.array([10,10,10,10,10]) * 10240000 ** 2)
 net_speed = net_speed_list * (args.client_number // 5 + 1)
 
 # delay_coefficient_list = [1000,2000,2500,3000,10000]
@@ -261,7 +263,7 @@ net_speed = net_speed_list * (args.client_number // 5 + 1)
 
 delay_coefficient_list = [16,20,32,72,256]
 #delay_coefficient_list = [16,16,16,16,16]
-delay_coefficient_list = list(np.array(delay_coefficient_list)/10)
+delay_coefficient_list = list(np.array(delay_coefficient_list)/4)
 
 delay_coefficient = delay_coefficient_list * (args.client_number // 5 + 1)  # coeffieient list for simulation computational power
 delay_coefficient = list(np.array(delay_coefficient))
@@ -1665,7 +1667,7 @@ def calculate_client_samples(train_data_local_num_dict, idxs_users, dataset):
 
 
 for i in range(0, num_users):
-    wandb.log({"Client{}_Tier".format(i): client_tier[i], "epoch": -1}, commit=False)
+    wandb.log({"Client{}_Tier".format(i): num_tiers - client_tier[i] + 1, "epoch": -1}, commit=False)
 
 #------------ Training And Testing  -----------------
 net_glob_client.train()
@@ -1833,13 +1835,16 @@ for iter in range(epochs):
     # mp.set_start_method('spawn')
     processes = []
     
+    # record all data transmitted in each epoch
+    data_transmitted_client_all = {}
+    
     simulated_delay= np.zeros(num_users)
     
     for idx in idxs_users:
         
         # Log the client tier for each client in WandB
         # for i in range(0, num_users):
-        wandb.log({"Client{}_Tier".format(idx): client_tier[idx], "epoch": iter}, commit=False)
+        wandb.log({"Client{}_Tier".format(idx): num_tiers - client_tier[idx] + 1, "epoch": iter}, commit=False)
         
         
         # calculate the delay to server send model to clients
@@ -1929,6 +1934,8 @@ for iter in range(epochs):
         
         data_transmitted_client = data_transmited_sl_client + data_transmited_fl_client
         
+        data_transmitted_client_all[idx] = data_transmitted_client
+        
         simulated_delay[idx] += compute_delay(data_transmitted_client, net_speed[idx]
                                               , delay_coefficient[idx], duration) # this is simulated delay
 
@@ -1965,7 +1972,9 @@ for iter in range(epochs):
                                                     num_tiers, server_wait_time, client_epoch,
                                                     time_train_server_train_all_list, num_users, iter,
                                                     sataset_size = sataset_size, avg_tier_time_list = avg_tier_time_list,
-                                                    max_time_list = max_time_list, idxs_users = idxs_users) # assign next tier and model
+                                                    max_time_list = max_time_list, idxs_users = idxs_users,
+                                                    data_transmitted_client_all = data_transmitted_client_all,
+                                                    net_speed = net_speed) # assign next tier and model
         #print(max_time_list)
         #print(max_time_list[-1])                                            
         wandb.log({"max_time": float(max_time_list.loc[len(max_time_list)-1]), "epoch": iter}, commit=False)

@@ -3,6 +3,54 @@ import pandas as pd
 import random
 import math
 
+
+def index_of_greatest_smaller(lst, max_time):
+    # Create a new list of all elements in lst that are greater than xx
+    greater_lst = [num for num in lst if num <= max_time]
+    
+    # If greater_lst is empty, return None
+    if not greater_lst:
+        return None
+    
+    # Find the smallest number in greater_lst and return its index in lst
+    smallest = max(greater_lst)
+    return list(lst).index(smallest) + 1
+
+def find_straggler(client_tier_time : list, num_users: int, client_tier_last: list,
+                   net_speed: list, data_transmitted_client_all: list, tier_ratios: dict,
+                   tier_intermediate_data: dict) -> int:
+    '''
+    
+    Parameters
+    ----------
+    client_tier_time : list
+        DESCRIPTION.
+
+    Returns
+    -------
+    int
+        DESCRIPTION.
+        index of slowest client
+
+    '''
+    
+    clients_min_estimation_time = []
+    for c in range(num_users):
+        total_time = np.mean(client_tier_time[c,client_tier_last[c]])
+        transmission_time = data_transmitted_client_all[c] / net_speed[c]
+        clinet_computaion_time = total_time - transmission_time
+        client_estimation_time_all_tiers = (list(np.array([value for value in tier_ratios.values()]) * clinet_computaion_time / tier_ratios[client_tier_last[c]]) # computation estimation
+                                            + np.array([value for value in tier_intermediate_data.values()]) / net_speed[c] ) # commmunication estimation
+        
+        clients_min_estimation_time.append(min(client_estimation_time_all_tiers))
+    max_estimation_time = max(clients_min_estimation_time)
+    
+    return clients_min_estimation_time.index(max_estimation_time), max_estimation_time
+        
+        
+        
+
+
 def dynamic_tier(client_tier, client_times, num_tiers, server_wait_time, client_epoch):
     present_time = client_times.ewm(com=0.5).mean()[-1:]
     client_tier_last = client_tier
@@ -467,6 +515,170 @@ def dynamic_tier9(client_tier, client_times, num_tiers, server_wait_time, client
             
     client_tier[slow_index] = num_tiers
     print('slow_index',slow_index)
+    
+    manual_tier = 6
+    # for i in range(num_users):
+    #     client_tier[i] = i % 7 + 1
+    
+    if num_users == 16 and False:
+         client_tier = {0: 1,
+         1: 2,
+         2: 3,
+         3: 4,
+         4: 5,
+         5: 6,
+         6: 7,
+         7: 1,
+         8: 2,
+         9: 3,
+         10: 4,
+         11: 5,
+         12: 6,
+         13: 7,
+         14: 1,
+         15: 2}
+    elif num_users == 16 and False:
+        for i in range(0,num_users):
+            client_tier[i] = (((step + i * 10 )//10) % (num_tiers - 2 )) + 1 + 2
+    elif False:
+         for i in range(0,100):    
+             client_tier[i] = manual_tier
+        
+         client_tier = {0: manual_tier,
+         1: manual_tier,
+         2: manual_tier,
+         3: manual_tier,
+         5: manual_tier,
+         6: manual_tier,
+         4: manual_tier,
+         7: manual_tier,
+         8: manual_tier,
+         9: manual_tier,
+         10: manual_tier,
+         11: manual_tier,
+         12: manual_tier,
+         13: manual_tier,
+         14: manual_tier,
+         15: manual_tier}
+         for i in range(0,100):    
+             client_tier[i] = manual_tier
+
+            
+            
+    print("client tier:", client_tier, "local epoch:", client_epoch, "T_max:", max_time, "tier_ratio", avg_tier_time)
+    
+    return client_tier, client_epoch, avg_tier_time_list, max_time_list, client_times
+
+
+def tier_scheduler(client_tier, client_times, num_tiers, server_wait_time, client_epoch, 
+                  time_train_server, num_users, step, **kwargs):
+    # global avg_tier_time_list
+    avg_tier_time = {}
+    memory_size = 10 # how many previous experiments look at for each tier in  one client
+    
+    if kwargs:
+        sataset_size = kwargs['sataset_size']
+        avg_tier_time_list = kwargs['avg_tier_time_list']
+        max_time_list = kwargs['max_time_list']
+        idxs_users = kwargs['idxs_users']
+        data_transmitted_client_all = kwargs['data_transmitted_client_all']
+        net_speed = kwargs['net_speed']
+        
+    
+    
+    client_tier_last = client_tier[-1].copy()
+    # avg_tier_client_time = {}
+    client_tier_time = np.empty((num_users,num_tiers,memory_size))
+    client_tier_time[:] = np.NaN
+    client_tier_time = dict()
+    
+    # I should revise this , and list of training time of each client in each tier
+    for i in range(0,num_users):   # this part calculate avg time of each tier each client in window
+        # avg_tier_client_time_serie=pd.Series()
+        # avg_tier_client_time_serie = pd.concat([avg_tier_client_time_serie, pd.Series(max_time * 10,index=[0])])
+        count = 0
+        for j in range(1, num_tiers+1): #range(1, num_tiers+1) range(num_tiers,0,-1)
+            # avg_tier_client_time[i] = []
+            client_tier_time[i,j] = []
+            # for t in range(max(0,len(client_tier) - 5 * memory_size), len(client_tier)):
+            for t in range(len(client_tier)-1,-1,-1):
+                if not count > memory_size:
+                    if client_tier[t][i] == j and not np.isnan(client_times[i][t]):
+                        client_tier_time[i,j].append(client_times[i][t])
+                        count += 1
+        
+    #print(client_tier_time)
+    client_tier = client_tier[-1].copy()
+    # max_client_list = [np.nanmean(avg_tier_client_time[i]) for i in avg_tier_client_time.keys()]
+    max_client_list = [np.nanmean(client_tier_time[i,num_tiers]) for i in range(0,num_users)]
+    # max_time = np.nanmax(max_client_list) # T_max is max of tier max of all clients
+    # max_time = float(np.nanmax(max_client_list) if not np.isnan(np.nanmax(max_client_list)) else max_time_list.iloc[-1]) # if not tier7 avilable
+    # slow_index = max_client_list.index(max_time) # index of slowest client
+    # slow_index = int(max_client_list.index(max_time) if not np.isnan(np.nanmax(max_client_list)) else 1) # if not tier7 avilable
+    # max_time_list.loc[len(max_time_list)] = max_time
+    # max_time = float(pd.DataFrame(max_time_list).ewm(com=0.5).mean().iloc[-1])
+    # max_increase_training_time = (0.8 * max_time) #- 10000
+    # max_time = max(client_tier_time[slow_index,num_tiers]) can be used for std of tmax
+    # smooth_param = 0.5
+    outliers = 3
+    
+    # tier_ratios = {1:9.1, 2:6.3, 3:5.1, 4:4.6, 5:3.3, 6:2.5, 7:1.0}
+    tier_ratios = {1:11.48, 2:10.22, 3:8.39, 4:6.62, 5:4.94, 6:2.92, 7:1.0} # should update for each experiemtns
+    MB = 1024 ** 2
+    tier_intermediate_data = {1:312 * MB, 2:312 * MB, 3:620 * MB, 4:620 * MB, 5:1250 * MB, 6:1250 * MB, 7:312 * MB}
+    
+    print('mean_client_times:\n', client_times.ewm(com=0.5).mean()[-1:].to_string(float_format='%.2f'))
+    
+    straggler_index, max_estimation_time = find_straggler(client_tier_time, num_users, client_tier_last,
+                       net_speed, data_transmitted_client_all, tier_ratios,
+                       tier_intermediate_data)
+    max_time = max_estimation_time
+    max_time_list.loc[len(max_time_list)] = max_time
+        
+    for c in client_tier.keys(): # I can change it and ignore straggler index, and assign that to best available
+        if c in idxs_users:
+            client_tier[c] = client_tier_last[c]
+            
+            mean = np.mean(client_tier_time[c,client_tier_last[c]])
+            
+            if len(client_tier_time[c,client_tier_last[c]]) <= 2:
+                client_tier[c] = client_tier_last[c]
+                
+            else:   # significant change, del previous measurments
+                # std = np.std(client_tier_time[c,client_tier_last[c]][:-1]) # will be zero when only one sample
+                std = np.std(client_tier_time[c,client_tier_last[c]][:]) # list indexing from end
+                
+                # mean = np.mean(client_tier_time[c,client_tier_last[c]][:-1]) # mean over previous 
+                mean = np.mean(client_tier_time[c,client_tier_last[c]][:])
+                
+                min_interval = mean - outliers * std
+                max_interval = mean + outliers * std
+                print('time range client', c, 'min_interval',min_interval,'current time',client_times[c].iloc[-1],'max_interval',max_interval)
+
+                    
+                if not ((min_interval) < client_times[c].iloc[-1] < (max_interval)): # if this is far from previous delete it
+                    # client_times[c] = np.NaN
+                    client_times[c][0:len(client_times[c])-1]  = np.NaN # delete only previous measurements
+                    print('change in client', c)
+                    mean = client_times[c].iloc[-1]
+                    
+
+                else:
+                    clinet_computaion_time = client_times[c].iloc[-1] - data_transmitted_client_all[c] / net_speed[c]
+                    client_estimation_time_all_tiers = (list(np.array([value for value in tier_ratios.values()]) * clinet_computaion_time / tier_ratios[client_tier_last[c]]) # computation estimation
+                                                        + np.array([value for value in tier_intermediate_data.values()]) / net_speed[c] ) # commmunication estimation
+                    client_tier[c] = index_of_greatest_smaller(client_estimation_time_all_tiers, max_time)
+                    
+                    print(f'assign client {c} to tier {7 - client_tier[c] + 1}')
+                    
+                    
+                       
+
+        else:
+            client_tier[c] = client_tier_last[c]
+            
+    client_tier[straggler_index] = num_tiers
+    print('slow_index',straggler_index)
     
     manual_tier = 6
     # for i in range(num_users):
