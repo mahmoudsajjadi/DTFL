@@ -21,7 +21,7 @@ def index_of_greatest_smaller(lst, max_time):
 
 def find_straggler(client_tier_time : list, num_users: int, client_tier_last: list,
                    net_speed: list, data_transmitted_client_all: list, tier_ratios: dict,
-                   tier_intermediate_data_profile: dict) -> int:
+                   tier_intermediate_data_profile: dict, idxs_users: list) -> int:
     '''
     
     Parameters
@@ -38,7 +38,12 @@ def find_straggler(client_tier_time : list, num_users: int, client_tier_last: li
     '''
     
     clients_min_estimation_time = []
-    for c in range(num_users):
+    for c in idxs_users:
+        # check if this client has history
+        if len(client_tier_time[c,client_tier_last[c]]) < 1:
+            continue
+
+
         # Compute total time, transmission time, and client computation time
         total_time = np.mean(client_tier_time[c,client_tier_last[c]])
         transmission_time = data_transmitted_client_all[c] / net_speed[c]
@@ -56,6 +61,11 @@ def find_straggler(client_tier_time : list, num_users: int, client_tier_last: li
         
         clients_min_estimation_time.append(min(client_estimation_time_all_tiers))
         print(client_estimation_time_all_tiers)
+    
+    # check if all new 
+    if len(clients_min_estimation_time) < 1:
+        return -1, -1
+    
     max_estimation_time = max(clients_min_estimation_time)
     
     return clients_min_estimation_time.index(max_estimation_time), max_estimation_time
@@ -638,9 +648,12 @@ def tier_scheduler(client_tier, client_times, num_tiers, server_wait_time, clien
     
     print('mean_client_times:\n', client_times.ewm(com=0.5).mean()[-1:].to_string(float_format='%.2f'))
     
+    # check the straggler in the next epoch, for next epoch clients
+    # print('net_speed' , net_speed)
+    # print('data_transmitted_client_all', data_transmitted_client_all)
     straggler_index, max_estimation_time = find_straggler(client_tier_time, num_users, client_tier_last,
                        net_speed, data_transmitted_client_all, tier_ratios,
-                       tier_intermediate_data_profile)
+                       tier_intermediate_data_profile, idxs_users)
     max_time = max_estimation_time
     max_time_list.loc[len(max_time_list)] = max_time
         

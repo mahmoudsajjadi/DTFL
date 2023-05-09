@@ -1769,7 +1769,12 @@ for i in range(0, num_users): # maybe remove this part
         data_server_to_client += sys.getsizeof(w_glob_client_tier[client_tier[i]][k].storage())
     simulated_delay[i] = data_server_to_client / net_speed[i]
 
+# Generate a list of randomly chosen user indices based on the number of users and the default fraction
+idxs_users, m = get_random_user_indices(num_users, DEFAULT_FRAC)
 
+# record all data transmitted in last involeved epoch
+data_transmitted_client_all = {}
+    
 for iter in range(epochs):
     if iter == int(10) and False:
         delay_coefficient[0] = delay_coefficient_list[2]
@@ -1811,8 +1816,6 @@ for iter in range(epochs):
     if args.whether_FedAVG_base:
         loss_locals_train, acc_locals_train, loss_locals_test, acc_locals_test = [], [], [], []
     
-    # Generate a list of randomly chosen user indices based on the number of users and the default fraction
-    idxs_users, m = get_random_user_indices(num_users, DEFAULT_FRAC)
     
     # Initialize empty lists for client weights
     w_locals_client = []
@@ -1835,8 +1838,6 @@ for iter in range(epochs):
     # mp.set_start_method('spawn')
     processes = []
     
-    # record all data transmitted in each epoch
-    data_transmitted_client_all = {}
     
     simulated_delay= np.zeros(num_users)
     
@@ -1934,6 +1935,7 @@ for iter in range(epochs):
         
         data_transmitted_client = data_transmited_sl_client + data_transmited_fl_client
         
+        # replace last observation with new observation for data transmission
         data_transmitted_client_all[idx] = data_transmitted_client
         
         simulated_delay[idx] += compute_delay(data_transmitted_client, net_speed[idx]
@@ -1966,9 +1968,14 @@ for iter in range(epochs):
     client_observed_times = pd.concat([client_observed_times, pd.DataFrame(client_observed_time).T], ignore_index=True)
     # print('client_observed_times: ',client_observed_times)
     client_epoch_last = client_epoch.copy()
+    
+    # Generate a list of randomly chosen user indices for the next round
+    idxs_users, m = get_random_user_indices(num_users, DEFAULT_FRAC)
+    
+    
     if not args.whether_FedAVG_base:
         
-        [client_tier, client_epoch, avg_tier_time_list, max_time_list, client_times] = tier_scheduler(client_tier_all[:], simulated_delay_historical_df, 
+        [client_tier, client_epoch, avg_tier_time_list, max_time_list, client_times] = dynamic_tier9(client_tier_all[:], simulated_delay_historical_df, 
                                                     num_tiers, server_wait_time, client_epoch,
                                                     time_train_server_train_all_list, num_users, iter,
                                                     sataset_size = sataset_size, avg_tier_time_list = avg_tier_time_list,
