@@ -1,0 +1,77 @@
+[33mcommit 9db14c695a5ca37f9bacea0e010f8958fe9f9106[m[33m ([m[1;36mHEAD -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m
+Author: mahmoud <mahmoud.sajjadi@gmail.com>
+Date:   Fri May 5 22:57:55 2023 +0000
+
+    update tier scheduler
+
+[33mcommit 1e6640fd09698d127d1bbfe6e02b9db29c30ce0a[m
+Author: mahmoud <mahmoud.sajjadi@gmail.com>
+Date:   Fri May 5 16:08:22 2023 +0000
+
+    update
+
+[33mcommit 2e9112a90dc85c2f6b37116cb570ea9309cf3f14[m
+Author: mahmoud <mahmoud.sajjadi@gmail.com>
+Date:   Wed May 3 22:19:19 2023 +0000
+
+    update
+
+[33mcommit 6bfc3749bcb2a5277c1f15c99289333c38232436[m
+Author: mahmoud <mahmoud.sajjadi@gmail.com>
+Date:   Tue May 2 22:57:09 2023 +0000
+
+    update parameters and communication
+
+[33mcommit 12f187c80d71b31be14152014c74e4eeb2bbe96f[m
+Author: mahmoud <mahmoud.sajjadi@gmail.com>
+Date:   Tue May 2 15:22:17 2023 +0000
+
+    update loss, dynamic tier, and add shuffling for privacy
+
+[33mcommit ec2d725a7d49839acd5ea37d557399d0cd375f3d[m
+Author: mahmoud <mahmoud.sajjadi@gmail.com>
+Date:   Tue Apr 25 23:05:47 2023 +0000
+
+    solve training time estimation and solve bugs for trasmission time
+
+[33mcommit 465ce6ea16c178ad586a692b264d5e688951e70a[m
+Author: mahmoud <mahmoud.sajjadi@gmail.com>
+Date:   Tue Apr 25 16:25:57 2023 +0000
+
+    solve training time estimation for clients when only part of clients invole in the training proces
+
+[33mcommit d1cc98851597b0f2e35119e5431d92ad9fa1d049[m
+Author: mahmoud <mahmoud.sajjadi@gmail.com>
+Date:   Tue Apr 25 16:04:26 2023 +0000
+
+    solve training time estimation for clients when only part of clients invole in the training proces
+
+[33mcommit 76e4ed88b9283cee18b0ea7d7ccaacef32cf34ca[m
+Author: mahmoud <mahmoud.sajjadi@gmail.com>
+Date:   Fri Apr 21 23:10:20 2023 +0000
+
+    remaining data in batch size considered now, solve number of datapoint per clients issue, improve generalization for HAM10000 by adding number of points in each client same as other datasets
+
+[33mcommit 47caf85952f188d1a4aea59d1d253b993ad968d6[m
+Author: mahmoud <mahmoud.sajjadi@gmail.com>
+Date:   Sun Apr 9 22:21:53 2023 +0000
+
+    revise DCor coeficient
+
+[33mcommit 4ee737e9073d7017b889af01467e2879bb36c459[m
+Author: mahmoud <mahmoud.sajjadi@gmail.com>
+Date:   Sun Apr 9 22:20:09 2023 +0000
+
+    revise DCor coeficient
+
+[33mcommit d295ed72464a6a0c61e52de9a032174f63f68d21[m
+Author: mahmoud <mahmoud.sajjadi@gmail.com>
+Date:   Sun Apr 9 21:30:47 2023 +0000
+
+    revise DCor coeficient
+
+[33mcommit 612350335338980c32a11f1d384593d38c0f37d3[m
+Author: mahmoud <mahmoud.sajjadi@gmail.com>
+Date:   Sat Apr 8 19:11:05 2023 +0000
+
+    first version

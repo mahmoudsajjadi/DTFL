@@ -163,11 +163,8 @@ class ResNet(nn.Module):
              self.layer5 = self._make_layer(block, 64, layers[4], stride=2)
         if self.tier == 1:# or self.local_v2:
              self.layer6 = self._make_layer(block, 64, layers[5], stride=1)
-             # self.layer4 = self._make_layer(block, 64, layers[2], stride=2)
-        
-        #self.layer1 = self._make_layer(block, 16, layers[0])
-        #self.layer2 = self._make_layer(block, 32, layers[1], stride=2)
-        #self.layer3 = self._make_layer(block, 64, layers[2], stride=2)
+
+
         if self.local_loss == True:
             self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
             if self.local_v2:
@@ -181,10 +178,8 @@ class ResNet(nn.Module):
                     self.fc = nn.Linear(32 * block.expansion, num_classes)
                 if self.tier == 6 or self.tier == 5:
                     self.fc = nn.Linear(16 * block.expansion, num_classes)
-                if self.tier == 7:# or self.tier == 6:
-                    # self.fc = nn.Linear(16 * block.expansion, num_classes)  # Mahmoud, should change based on the layer on client
+                if self.tier == 7:
                     self.fc = nn.Linear(4 * block.expansion, num_classes)  # Mahmoud, should change based on the layer on client
-        # self.fc = nn.Linear(32 * block.expansion, num_classes)
 
         self.KD = KD
         for m in self.modules():
@@ -228,29 +223,12 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-#Mahmoud     
-    
-        
     def forward(self, x):
     
-        if self.tier == 1:  #Mahmoud
-            # torch.set_grad_enabled(False)
-            # with torch.no_grad():
-                
-            # self.conv1.requires_grad_(False)
-            # self.bn1.requires_grad_(False)
-            # self.relu.requires_grad_(False)
-            # self.layer1.requires_grad_(False)
-            # self.layer2.requires_grad_(False)
-            # self.layer3.requires_grad_(False)
-            # self.layer4.requires_grad_(False)
-            # self.layer5.requires_grad_(False)
-            # self.layer6.requires_grad_(True)
-            
+        if self.tier == 1:  
             x = self.conv1(x)
             x = self.bn1(x)
             x = self.relu(x)  # B x 16 x 32 x 32
-            # x = self.maxpool(x)
                 
             x = self.layer1(x)  # B x 16 x 32 x 32
             x = self.layer2(x)  # B x 32 x 16 x 16
@@ -268,40 +246,26 @@ class ResNet(nn.Module):
                 logits = self.fc(x_f)  # B x num_classes
                 return logits    
     
-            if self.local_loss == True:
+            elif self.local_loss == True:
                 if self.local_v2:
-                    # with torch.no_grad():
-                    # x = self.layer2(x)  # B x 32 x 16 x 16
-                    # x = self.layer3(x)  # B x 64 x 8 x 8
-                    # x = self.layer4(x)
-                    # x = self.layer5(x)
-                    # x = self.layer6(x)
-                    # extracted_features = x
                     x = self.avgpool(x)
-                    x_f = x.view(x.size(0), -1)  # B x 64
-                    logits = self.fc(x_f)  # B x num_classes
                 else:
                     x = self.avgpool(x)  # B x 64 x 1 x 1
-                    # extracted_features = x
-                    x_f = x.view(x.size(0), -1)  # B x 64
-                    logits = self.fc(x_f)  # B x num_classes
+                x_f = x.view(x.size(0), -1)  # B x 64
+                logits = self.fc(x_f)  # B x num_classes
                 return logits, extracted_features            
             return extracted_features               
 
             
-        if self.tier == 2:  #Mahmoud
+        if self.tier == 2:  
             x = self.conv1(x)
             x = self.bn1(x)
             x = self.relu(x)  # B x 16 x 32 x 32
-            # x = self.maxpool(x)
-                
             x = self.layer1(x)  # B x 16 x 32 x 32
             x = self.layer2(x)  # B x 32 x 16 x 16
             x = self.layer3(x)  # B x 64 x 8 x 8
             x = self.layer4(x)
             x = self.layer5(x)
-            
-            
             extracted_features = x
     
             if self.local_loss == True:
@@ -314,22 +278,19 @@ class ResNet(nn.Module):
                     # x = self.layer6(x)
                     # extracted_features = x
                     x = self.avgpool(x)
-                    x_f = x.view(x.size(0), -1)  # B x 64
-                    logits = self.fc(x_f)  # B x num_classes
+ 
                 else:
                     x = self.avgpool(x)  # B x 64 x 1 x 1
-                    # extracted_features = x
-                    x_f = x.view(x.size(0), -1)  # B x 64
-                    logits = self.fc(x_f)  # B x num_classes
+                x_f = x.view(x.size(0), -1)  # B x 64
+                logits = self.fc(x_f)  # B x num_classes
                 return logits, extracted_features            
             return extracted_features              
 
             
-        if self.tier == 3:  #Mahmoud
+        if self.tier == 3: 
             x = self.conv1(x)
             x = self.bn1(x)
             x = self.relu(x)  # B x 16 x 32 x 32
-            # x = self.maxpool(x)
                 
             x = self.layer1(x)  # B x 16 x 32 x 32
             x = self.layer2(x)  # B x 32 x 16 x 16
@@ -340,159 +301,101 @@ class ResNet(nn.Module):
     
             if self.local_loss == True:
                 if self.local_v2:
-                    # with torch.no_grad():
-                    # x = self.layer2(x)  # B x 32 x 16 x 16
-                    # x = self.layer3(x)  # B x 64 x 8 x 8
-                    # x = self.layer4(x)
                     x = self.layer5(x)
-                    # x = self.layer6(x)
-                    # extracted_features = x
                     x = self.avgpool(x)
-                    x_f = x.view(x.size(0), -1)  # B x 64
-                    logits = self.fc(x_f)  # B x num_classes
+            
                 else:
                     x = self.avgpool(x)  # B x 64 x 1 x 1
-                    # extracted_features = x
-                    x_f = x.view(x.size(0), -1)  # B x 64
-                    logits = self.fc(x_f)  # B x num_classes
+                x_f = x.view(x.size(0), -1)  # B x 64
+                logits = self.fc(x_f)  # B x num_classes
                 return logits, extracted_features            
             return extracted_features              
 
             
-        if self.tier == 4:  #Mahmoud
+        if self.tier == 4:  
             x = self.conv1(x)
             x = self.bn1(x)
             x = self.relu(x)  # B x 16 x 32 x 32
-            # x = self.maxpool(x)
-                
             x = self.layer1(x)  # B x 16 x 32 x 32
-            #extracted_features = x
-
             
             x = self.layer2(x)  # B x 32 x 16 x 16
-            
             x = self.layer3(x)  # B x 64 x 8 x 8
             extracted_features = x
     
             if self.local_loss == True:
                 if self.local_v2:
-                    # with torch.no_grad():
-                    # x = self.layer2(x)  # B x 32 x 16 x 16
-                    # x = self.layer3(x)  # B x 64 x 8 x 8
-                    # x = self.layer4(x)
                     x = self.layer5(x)
-                    # x = self.layer6(x)
-                    # extracted_features = x
                     x = self.avgpool(x)
-                    x_f = x.view(x.size(0), -1)  # B x 64
-                    logits = self.fc(x_f)  # B x num_classes
                 else:
                     x = self.avgpool(x)  # B x 64 x 1 x 1
-                    # extracted_features = x
-                    x_f = x.view(x.size(0), -1)  # B x 64
-                    logits = self.fc(x_f)  # B x num_classes
+                x_f = x.view(x.size(0), -1)  # B x 64
+                logits = self.fc(x_f)  # B x num_classes
                 return logits, extracted_features            
             return extracted_features              
 
             
                         
-        if self.tier == 5:  #Mahmoud
+        if self.tier == 5:  
             x = self.conv1(x)
             x = self.bn1(x)
             x = self.relu(x)  # B x 16 x 32 x 32
-            # x = self.maxpool(x)
                 
             x = self.layer1(x)  # B x 16 x 32 x 32
-            #extracted_features = x
-
             
             x = self.layer2(x)  # B x 32 x 16 x 16
             extracted_features = x
-            # x = self.layer3(x)  # B x 64 x 8 x 8
-    
+            
             if self.local_loss == True:
                 if self.local_v2:
-                    # with torch.no_grad():
-                    # x = self.layer2(x)  # B x 32 x 16 x 16
                     x = self.layer3(x)  # B x 64 x 8 x 8
-                    # x = self.layer4(x)
                     x = self.layer5(x)
-                    # x = self.layer6(x)
-                    # extracted_features = x
                     x = self.avgpool(x)
-                    x_f = x.view(x.size(0), -1)  # B x 64
-                    logits = self.fc(x_f)  # B x num_classes
                 else:
                     x = self.avgpool(x)  # B x 64 x 1 x 1
-                    # extracted_features = x
-                    x_f = x.view(x.size(0), -1)  # B x 64
-                    logits = self.fc(x_f)  # B x num_classes
+                x_f = x.view(x.size(0), -1)  # B x 64
+                logits = self.fc(x_f)  # B x num_classes
                 return logits, extracted_features            
             return extracted_features             
 
 
-        if self.tier == 6:  #Mahmoud
+        if self.tier == 6:  
             x = self.conv1(x)
             x = self.bn1(x)
             x = self.relu(x)  # B x 16 x 32 x 32
-            # x = self.maxpool(x)
-            # extracted_features = x
-    
+            
             x = self.layer1(x)  # B x 16 x 32 x 32
             extracted_features = x  # Mahmoud change   I saw OverflowError: integer 4228242568 does not fit in 'int' error  # it should work since I have used this after layer one in tier 4  MPI error
-            # x = self.layer2(x)  # B x 32 x 16 x 16
-            # x = self.layer3(x)  # B x 64 x 8 x 8
     
             if self.local_loss == True:
                 if self.local_v2:
-                    # with torch.no_grad():
-                    # x = self.layer2(x)  # B x 32 x 16 x 16
+    
                     x = self.layer3(x)  # B x 64 x 8 x 8
-                    # x = self.layer4(x)
                     x = self.layer5(x)
-                    # x = self.layer6(x)
-                    # extracted_features = x
                     x = self.avgpool(x)
-                    x_f = x.view(x.size(0), -1)  # B x 64
-                    logits = self.fc(x_f)  # B x num_classes
+    
                 else:
                     x = self.avgpool(x)  # B x 64 x 1 x 1
-                    # extracted_features = x
-                    x_f = x.view(x.size(0), -1)  # B x 64
-                    logits = self.fc(x_f)  # B x num_classes
+                x_f = x.view(x.size(0), -1)  # B x 64
+                logits = self.fc(x_f)  # B x num_classes
                 return logits, extracted_features            
             return extracted_features            
             
-        if self.tier == 7:  #Mahmoud
+        if self.tier == 7:  
             x = self.conv1(x)
             x = self.bn1(x)
             x = self.relu(x)  # B x 16 x 32 x 32
-            # x = self.maxpool(x)
-            # extracted_features = x
-    
-            # x = self.layer1(x)  # B x 16 x 32 x 32
             extracted_features = x  # Mahmoud change   I saw OverflowError: integer 4228242568 does not fit in 'int' error  # it should work since I have used this after layer one in tier 5  MPI error
-            # x = self.layer2(x)  # B x 32 x 16 x 16
-            # x = self.layer3(x)  # B x 64 x 8 x 8
-    
+            
             if self.local_loss == True:
                 if self.local_v2:
-                    # with torch.no_grad():
                     x = self.layer1(x)  # B x 16 x 32 x 32
-                    # x = self.layer2(x)  # B x 32 x 16 x 16
                     x = self.layer3(x)  # B x 64 x 8 x 8
-                    # x = self.layer4(x)
                     x = self.layer5(x)
-                    # x = self.layer6(x)
-                    # extracted_features = x
                     x = self.avgpool(x)
-                    x_f = x.view(x.size(0), -1)  # B x 64
-                    logits = self.fc(x_f)  # B x num_classes
                 else:
                     x = self.avgpool(x)  # B x 64 x 1 x 1
-                    # extracted_features = x
-                    x_f = x.view(x.size(0), -1)  # B x 64
-                    logits = self.fc(x_f)  # B x num_classes
+                x_f = x.view(x.size(0), -1)  # B x 64
+                logits = self.fc(x_f)  # B x num_classes
                 return logits, extracted_features            
             return extracted_features            
 
@@ -539,7 +442,6 @@ class ResNet_server(nn.Module):
         # untill here
         
         
-        # self.maxpool = nn.MaxPool2d()
         if self.tier == 7:   
             self.layer1 = self._make_layer(block, 16, layers[0])
         if self.tier == 7 or self.tier == 6:   
@@ -614,16 +516,7 @@ class ResNet_server(nn.Module):
             x = self.fc(x_f)  # B x num_classes
             return x
     
-        if self.tier == 2:  #Mahmoud
-            # x = self.conv1(x)
-            # x = self.bn1(x)
-            # x = self.relu(x)  # B x 16 x 32 x 32
-            # x = self.maxpool(x)
-            # x = self.layer1(x)  # B x 16 x 32 x 32
-            # x = self.layer2(x)  # B x 32 x 16 x 16
-            # x = self.layer3(x)  # B x 64 x 8 x 8
-            # x = self.layer4(x)
-            # x = self.layer5(x)
+        if self.tier == 2:  
             x = self.layer6(x)
     
             x = self.avgpool(x)  # B x 64 x 1 x 1
@@ -631,15 +524,7 @@ class ResNet_server(nn.Module):
             x = self.fc(x_f)  # B x num_classes
             return x
     
-        if self.tier == 3:  #Mahmoud
-            # x = self.conv1(x)
-            # x = self.bn1(x)
-            # x = self.relu(x)  # B x 16 x 32 x 32
-            # x = self.maxpool(x)
-            # x = self.layer1(x)  # B x 16 x 32 x 32
-            # x = self.layer2(x)  # B x 32 x 16 x 16
-            # x = self.layer3(x)  # B x 64 x 8 x 8
-            # x = self.layer4(x)
+        if self.tier == 3:  
             x = self.layer5(x)
             x = self.layer6(x)
     
@@ -648,15 +533,7 @@ class ResNet_server(nn.Module):
             x = self.fc(x_f)  # B x num_classes
             return x
             
-        if self.tier == 4:  #Mahmoud
-            # x = self.conv1(x)
-            # x = self.bn1(x)
-            # x = self.relu(x)  # B x 16 x 32 x 32
-            # x = self.maxpool(x)
-            # x = self.layer1(x)  # B x 16 x 32 x 32
-            # x = self.layer1(x)  # B x 16 x 32 x 32
-            # x = self.layer2(x)  # B x 32 x 16 x 16
-            # x = self.layer3(x)  # B x 64 x 8 x 8
+        if self.tier == 4:  
             x = self.layer4(x)
             x = self.layer5(x)
             x = self.layer6(x)
@@ -667,14 +544,7 @@ class ResNet_server(nn.Module):
             return x
             
               
-        if self.tier == 5:  #Mahmoud
-            # x = self.conv1(x)
-            # x = self.bn1(x)
-            # x = self.relu(x)  # B x 16 x 32 x 32
-            # x = self.maxpool(x)
-            # x = self.layer1(x)  # B x 16 x 32 x 32
-            # x = self.layer1(x)  # B x 16 x 32 x 32
-            # x = self.layer2(x)  # B x 32 x 16 x 16
+        if self.tier == 5:  
             x = self.layer3(x)  # B x 64 x 8 x 8
             x = self.layer4(x)
             x = self.layer5(x)
@@ -685,12 +555,7 @@ class ResNet_server(nn.Module):
             x = self.fc(x_f)  # B x num_classes
             return x
 
-        if self.tier == 6:  #Mahmoud
-            # x = self.conv1(x)
-            # x = self.bn1(x)
-            # x = self.relu(x)  # B x 16 x 32 x 32
-            # x = self.maxpool(x)
-            # x = self.layer1(x)  # B x 16 x 32 x 32
+        if self.tier == 6:  
             x = self.layer2(x)  # B x 32 x 16 x 16
             x = self.layer3(x)  # B x 64 x 8 x 8
             x = self.layer4(x)
@@ -702,11 +567,7 @@ class ResNet_server(nn.Module):
             x = self.fc(x_f)  # B x num_classes
             return x            
             
-        if self.tier == 7:  #Mahmoud
-            # x = self.conv1(x)
-            # x = self.bn1(x)
-            # x = self.relu(x)  # B x 16 x 32 x 32
-            # x = self.maxpool(x)
+        if self.tier == 7:  
             x = self.layer1(x)  # B x 16 x 32 x 32
             x = self.layer2(x)  # B x 32 x 16 x 16
             x = self.layer3(x)  # B x 64 x 8 x 8
@@ -1241,6 +1102,33 @@ def resnet56_SFL_fedavg_base(classes, tier=5, **kwargs):
     net_glob_client = ResNet(Bottleneck, [6, 6, 6, 6, 6, 6], num_classes = classes, tier = tier, local_loss=True, **kwargs) 
     return net_glob_client
 
+def resnet56_base(classes, tier=1, **kwargs):
+    """ResNet-56 base model.
 
-# def resnet56_SFL_gkt(classes, tier=5, **kwargs):
+    Args:
+      classes: Number of classes.
+      tier: Tier of the model.
+      **kwargs: Additional keyword arguments.
+    
+    Returns:
+      A ResNet-56 model.
+    """
+    net_glob_client = ResNet(Bottleneck, [3, 3, 3, 3, 3, 3], num_classes = classes, tier = tier, local_loss=True, **kwargs) 
+    return net_glob_client
+
+def resnet110_base(classes, tier=1, **kwargs):
+    """ResNet-110 base model.
+
+    Args:
+      classes: Number of classes.
+      tier: Tier of the model.
+      **kwargs: Additional keyword arguments.
+    
+    Returns:
+      A ResNet-110 model.
+    """
+    net_glob_client = ResNet(Bottleneck, [6, 6, 6, 6, 6, 6], num_classes = classes, tier = tier, local_loss=True, **kwargs) 
+    return net_glob_client
+
+
     

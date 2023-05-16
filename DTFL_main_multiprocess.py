@@ -46,6 +46,10 @@ from model.resnet110_7t import resnet56_SFL_local_tier_7
 from model.resnet110_7t import resnet56_SFL_tier_7
 from model.resnet110_7t import resnet56_SFL_fedavg_base
 from model.resnet_pretrained import resnet56_pretrained
+from model.resnet import resnet56_base
+from model.resnet import resnet110_base
+
+
 # from model.resnet101 import resnet101_local_tier
 from utils.loss import PatchShuffle
 from utils.loss import dis_corr
@@ -98,8 +102,8 @@ def add_args(parser):
     
     # Optimization related arguments
     parser.add_argument('--lr', default=0.001, type=float)
-    parser.add_argument('--lr_factor', default=0.8, type=float)
-    parser.add_argument('--lr_patience', default=20, type=float)
+    parser.add_argument('--lr_factor', default=0.3, type=float)
+    parser.add_argument('--lr_patience', default=10, type=float)
     parser.add_argument('--lr_min', default=0, type=float)
     parser.add_argument('--whether_dynamic_lr_client', default=1, type=int)
     parser.add_argument('--optimizer', default="Adam", type=str, help='optimizer: SGD, Adam, etc.')
@@ -121,14 +125,14 @@ def add_args(parser):
         
     # Federated learning related arguments
     parser.add_argument('--client_epoch', default=1, type=int)
-    parser.add_argument('--client_number', type=int, default=100, metavar='NN',
+    parser.add_argument('--client_number', type=int, default=10, metavar='NN',
                         help='number of workers in a distributed cluster')
-    parser.add_argument('--batch_size', type=int, default=64, metavar='N',
+    parser.add_argument('--batch_size', type=int, default=128, metavar='N',
                         help='input batch size for training (default: 64)')
-    parser.add_argument('--rounds', default=1000, type=int)
+    parser.add_argument('--rounds', default=100, type=int)
     parser.add_argument('--whether_local_loss', default=True, type=bool)
     parser.add_argument('--whether_local_loss_v2', default=False, type=bool)
-    parser.add_argument('--whether_FedAVG_base', default=False, type=bool) # this is for base line of fedavg
+    parser.add_argument('--whether_FedAVG_base', default=1, type=int) # this is for base line of fedavg
     parser.add_argument('--whether_multi_tier', default=True, type=bool)
     parser.add_argument('--whether_federation_at_clients', default=True, type=bool)
     parser.add_argument('--whether_aggregated_federation', default=1, type=int)
@@ -162,11 +166,18 @@ def add_args(parser):
     parser.add_argument('--test_before_train', type=int, default=0 , metavar='N',  # by this we can check the accuracy of global model
                         help='test before train')  
     
+    
+    # Add the argument for simulation like net_speed_list
+    parser.add_argument('--net_speed_list', type=str, default=[100, 50, 50, 50, 10],
+                    metavar='N', help='list of net speeds in mega bytes')
+    parser.add_argument('--delay_coefficient_list', type=str, default=[16, 22, 54, 72, 256],
+                    metavar='N', help='list of delay coefficients')
+    
     args = parser.parse_args()
     return args
 
 DYNAMIC_LR_THRESHOLD = 0.0001
-DEFAULT_FRAC = 0.1        # participation of clients; if 1 then 100% clients participate in SFLV1
+DEFAULT_FRAC = 1.0        # participation of clients; if 1 then 100% clients participate in SFLV1
 
 
 NUM_CPUs = os.cpu_count()
@@ -174,6 +185,8 @@ NUM_CPUs = os.cpu_count()
 parser = argparse.ArgumentParser()
 args = add_args(parser)
 logging.info(args)
+
+args.whether_FedAVG_base = True if args.whether_FedAVG_base == 1 else False # I have to change True to 1 since Wandb have problem with bool
 
 # wandb.init(mode="online")
 # os.environ["WANDB_MODE"] = "online"
@@ -195,20 +208,52 @@ SFL_local_tier = resnet56_SFL_local_tier_7
 
 ### model selection
 
+
+class_num = 10
+
 if args.whether_FedAVG_base:
-    SFL_local_tier = resnet56_SFL_fedavg_base
+    if args.model == 'resnet56_7':
+        SFL_local_tier = resnet56_base
+    elif args.model == 'resnet110_7':
+        SFL_local_tier = resnet110_base
+    else:
+        SFL_local_tier = resnet56_base
     num_tiers = 1
     args.tier = 1
+    ## global model
+    init_glob_model = SFL_local_tier(classes=class_num,tier=1, fedavg_base = True)
+
 
 elif args.model == 'resnet56_5' and args.whether_local_loss:
     SFL_local_tier = resnet56_SFL_local_tier
     num_tiers = 5
+    ## global model
+    init_glob_model = resnet56_SFL_fedavg_base(classes=class_num,tier=1, fedavg_base = True)
+
 elif args.model == 'resnet56_7' and args.whether_local_loss:
     SFL_local_tier = resnet56_SFL_local_tier_7
     num_tiers = 7
+    ## global model
+    init_glob_model = resnet56_SFL_fedavg_base(classes=class_num,tier=1, fedavg_base = True)
+
 elif args.model == 'resnet56_7' and not args.whether_local_loss:
     SFL_local_tier = resnet56_SFL_tier_7
     num_tiers = 7
+    ## global model
+    init_glob_model = resnet56_SFL_fedavg_base(classes=class_num,tier=1, fedavg_base = True)
+
+
+
+if args.whether_FedAVG_base:
+    if args.model == 'resnet56_7':
+        SFL_local_tier = resnet56_base
+    elif args.model == 'resnet110_7':
+        SFL_local_tier = resnet110_base
+    else:
+        SFL_local_tier = resnet56_base
+
+
+
 
 
 whether_GKT_local_loss = args.whether_GKT_local_loss
@@ -226,6 +271,7 @@ whether_distillation_on_clients = args.whether_distillation_on_clients
 client_type_percent = [0.0, 0.0, 0.0, 0.0, 1.0]
 if args.whether_FedAVG_base:
     client_type_percent = [1.0]
+
 
 elif num_tiers == 7:
     client_type_percent = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
@@ -250,7 +296,13 @@ net_speed_list = np.array([100, 200, 500]) * 1024000 ** 2  # MB/s: speed for tra
 net_speed_weights = [0.5, 0.25, 0.25]  # weights for each speed level
 net_speed = random.choices(net_speed_list, weights=net_speed_weights, k=args.client_number)
 
-net_speed_list = list(np.array([100,50,50,50,10]) * 1024 ** 2)
+# net_speed_list = list(np.array([100,50,50,50,10]) * 1024 ** 2)
+# Convert net_speed_list to a numpy array and scale it
+# print(args.net_speed_list, type(args.net_speed_list))
+args.net_speed_list = [int(i) for i in args.net_speed_list.split()]
+# print(args.net_speed_list, type(args.net_speed_list))
+net_speed_list = list(np.array(args.net_speed_list) * 1024 ** 2)
+
 #net_speed_list = list(np.array([10,10,10,10,10]) * 10240000 ** 2)
 net_speed = net_speed_list * (args.client_number // 5 + 1)
 
@@ -261,7 +313,8 @@ net_speed = net_speed_list * (args.client_number // 5 + 1)
 
 # delay_coefficient = list(np.array(delay_coefficient)/10)
 
-delay_coefficient_list = [16,22,54,72,256]
+# delay_coefficient_list = [16,22,54,72,256]
+delay_coefficient_list = [int(i) for i in args.delay_coefficient_list.split()]
 #delay_coefficient_list = [16,16,16,16,16]
 delay_coefficient_list = list(np.array(delay_coefficient_list)/4)
 
@@ -307,7 +360,6 @@ whether_distillation_on_the_server =args.whether_distillation_on_the_server
 #   load dataset
 # ====
 
-class_num = 7
 
 
 def load_data(args, dataset_name):
@@ -376,9 +428,6 @@ if args.dataset != "HAM10000" and args.dataset != "cinic10":
     avg_dataset = sum(sataset_size.values()) / len(sataset_size)
     
 
-
-## global model
-init_glob_model = resnet56_SFL_fedavg_base(classes=class_num,tier=1, fedavg_base = True)
 
 
 
@@ -1947,15 +1996,16 @@ for iter in range(epochs):
         wandb.log({"Client{}_Data_Transmission(MB)_Intermediate_data".format(idx): data_transmited_sl_client/1024**2, "epoch": iter}, commit=False)
     server_wait_time = (max(simulated_delay * client_epoch) - min(simulated_delay * client_epoch))
     wandb.log({"Server_wait_time": server_wait_time, "epoch": iter}, commit=False)
-    wandb.log({"Total_training_time": total_time, "epoch": iter}, commit=False)
+    # wandb.log({"Total_training_time_server": total_time, "epoch": iter}, commit=False)
     if args.whether_FedAVG_base:
         training_time = (max(simulated_delay))
     else:
-        training_time = (max(simulated_delay) + max(times_in_server))
+        # training_time = (max(simulated_delay) + max(times_in_server))
+        training_time = (max(simulated_delay)) # by assumption that server is very fast and powerful
     total_training_time += training_time
     if iter == 0:
         first_training_time = training_time
-    wandb.log({"Training_time": total_training_time, "epoch": iter}, commit=False)
+    wandb.log({"Training_time_clients": total_training_time, "epoch": iter}, commit=False)
     times_in_server = []
     time_train_server_train_all_list.append(time_train_server_train_all)
     time_train_server_train_all = 0
@@ -1975,7 +2025,7 @@ for iter in range(epochs):
     
     if not args.whether_FedAVG_base:
         
-        [client_tier, client_epoch, avg_tier_time_list, max_time_list, client_times] = dynamic_tier9(client_tier_all[:], simulated_delay_historical_df, 
+        [client_tier, client_epoch, avg_tier_time_list, max_time_list, client_times] = tier_scheduler(client_tier_all[:], simulated_delay_historical_df, 
                                                     num_tiers, server_wait_time, client_epoch,
                                                     time_train_server_train_all_list, num_users, iter,
                                                     sataset_size = sataset_size, avg_tier_time_list = avg_tier_time_list,
