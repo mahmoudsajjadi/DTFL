@@ -125,9 +125,9 @@ def add_args(parser):
         
     # Federated learning related arguments
     parser.add_argument('--client_epoch', default=1, type=int)
-    parser.add_argument('--client_number', type=int, default=10, metavar='NN',
+    parser.add_argument('--client_number', type=int, default=4, metavar='NN',
                         help='number of workers in a distributed cluster')
-    parser.add_argument('--batch_size', type=int, default=128, metavar='N',
+    parser.add_argument('--batch_size', type=int, default=1, metavar='N',
                         help='input batch size for training (default: 64)')
     parser.add_argument('--rounds', default=100, type=int)
     parser.add_argument('--whether_local_loss', default=True, type=bool)
@@ -142,7 +142,7 @@ def add_args(parser):
     parser.add_argument('--tier', default=5, type=int)
         
     # Knowledge disstilation related arguments
-    parser.add_argument('--KD_beta_init', default=1.0, type=float)    # (1-alpha) CE + alpha DCOR + beta KD(client-side)
+    parser.add_argument('--KD_beta_init', default=0.0, type=float)    # (1-alpha) CE + alpha DCOR + beta KD(client-side)
     parser.add_argument('--KD_increase_factor', default=500.0, type=float)  # if more, it become like KD-init faster
     parser.add_argument('--whether_distillation_on_the_server', default=0, type=int)
     parser.add_argument('--whether_distillation_on_clients', default=False, type=bool)
@@ -163,8 +163,7 @@ def add_args(parser):
                         help='version of aggregation')
     parser.add_argument('--global_model', type=int, default=0 , metavar='N',
                         help='global model for testing the method')
-    parser.add_argument('--test_before_train', type=int, default=0 , metavar='N',  # by this we can check the accuracy of global model
-                        help='test before train')  
+
     
     
     # Add the argument for simulation like net_speed_list
@@ -299,7 +298,7 @@ net_speed = random.choices(net_speed_list, weights=net_speed_weights, k=args.cli
 # net_speed_list = list(np.array([100,50,50,50,10]) * 1024 ** 2)
 # Convert net_speed_list to a numpy array and scale it
 # print(args.net_speed_list, type(args.net_speed_list))
-args.net_speed_list = [int(i) for i in args.net_speed_list.split()]
+# args.net_speed_list = [int(i) for i in args.net_speed_list.split()]
 # print(args.net_speed_list, type(args.net_speed_list))
 net_speed_list = list(np.array(args.net_speed_list) * 1024 ** 2)
 
@@ -314,9 +313,9 @@ net_speed = net_speed_list * (args.client_number // 5 + 1)
 # delay_coefficient = list(np.array(delay_coefficient)/10)
 
 # delay_coefficient_list = [16,22,54,72,256]
-delay_coefficient_list = [int(i) for i in args.delay_coefficient_list.split()]
+# args.delay_coefficient_list = [int(i) for i in args.delay_coefficient_list.split()]
 #delay_coefficient_list = [16,16,16,16,16]
-delay_coefficient_list = list(np.array(delay_coefficient_list)/4)
+delay_coefficient_list = list(np.array(args.delay_coefficient_list)/4)
 
 delay_coefficient = delay_coefficient_list * (args.client_number // 5 + 1)  # coeffieient list for simulation computational power
 delay_coefficient = list(np.array(delay_coefficient))
@@ -1859,7 +1858,6 @@ for iter in range(epochs):
         delay_coefficient[8] = delay_coefficient_list[1]
         delay_coefficient[9] = delay_coefficient_list[2]
                 
-        # delay_coefficient = list(np.roll(delay_coefficient,1))
         
     # If whether_FedAVG_base is True, initialize empty lists for train and test losses and accuracies
     if args.whether_FedAVG_base:
@@ -1894,7 +1892,7 @@ for iter in range(epochs):
         
         # Log the client tier for each client in WandB
         # for i in range(0, num_users):
-        wandb.log({"Client{}_Tier".format(idx): num_tiers - client_tier[idx] + 1, "epoch": iter}, commit=False)
+        wandb.log({"Client{}_Tier".format(idx): num_tiers - client_tier[idx] + 1, "epoch": iter}, commit=False) # tier 1 smallest model
         
         
         # calculate the delay to server send model to clients
@@ -1920,15 +1918,7 @@ for iter in range(epochs):
         else:
             local = Client(net_glob_client, idx, lr, device, dataset_train = dataset_train, dataset_test = dataset_test, idxs = [], idxs_test = [])
             
-        if args.test_before_train == 1:# and iter % 20 == 0:
-            if args.whether_FedAVG_base and idx == idxs_users[0]:
-            #if args.whether_FedAVG_base and idx == idxs_users[0] and (iter % int(args.rounds / 1) == 0):
-                loss_test, acc_test = local.evaluate(net = copy.deepcopy(net_glob_client).to(device), ell= iter)
-                loss_locals_test.append(copy.deepcopy(loss_test))
-                acc_locals_test.append(copy.deepcopy(acc_test))
-            #elif idx == idxs_users[0] and (iter % int(args.rounds / 1) == 0):
-            elif idx == idxs_users[0]:
-                local.evaluate(net = copy.deepcopy(net_glob_client).to(device), ell= iter)
+
         # Training ------------------
         if args.whether_FedAVG_base:
             # add multiprocessing here
@@ -1955,7 +1945,7 @@ for iter in range(epochs):
         w_locals_client_tier[client_tier[idx]].append(copy.deepcopy(w_client))
         
         # Testing -------------------  # why for testing do not use last weight update of that client?? # at this point it use last upate of weights
-        if args.test_before_train == 0 and idx == idxs_users[-1]:
+        if idx == idxs_users[-1]:
             net = copy.deepcopy(net_glob_client)
             w_previous = copy.deepcopy(net.state_dict())  # to test for updated model
             net.load_state_dict(w_client)
