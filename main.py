@@ -36,16 +36,15 @@ import warnings
 warnings.filterwarnings("ignore")
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../")))
-from model.resnet_client import resnet18_SFL_tier
-from model.resnet_client import resnet18_SFL_local_tier
+
 from model.resnet56 import resnet56_SFL_local_tier
 from model.resnet110_7t import resnet56_SFL_local_tier_7
-#from model.resnet56_7t import resnet56_SFL_local_tier_7
 from model.resnet110_7t import resnet56_SFL_tier_7
 from model.resnet110_7t import resnet56_SFL_fedavg_base
-from model.resnet_pretrained import resnet56_pretrained
+from model.resnet110_7t import resnet110_SFL_fedavg_base
 from model.resnet import resnet56_base
 from model.resnet import resnet110_base
+from model.resnet import resnet110_SFL_local_tier_7
 
 
 # from model.resnet101 import resnet101_local_tier
@@ -108,7 +107,7 @@ def add_args(parser):
     parser.add_argument('--wd', help='weight decay parameter;', type=float, default=5e-4)
 
     # Model related arguments
-    parser.add_argument('--model', type=str, default='resnet56_7', metavar='N',
+    parser.add_argument('--model', type=str, default='resnet110_7', metavar='N',
                         help='neural network used in training')
     
     
@@ -167,7 +166,7 @@ def add_args(parser):
     # Add the argument for simulation like net_speed_list
     parser.add_argument('--net_speed_list', type=str, default=[100, 50, 50, 50, 10],
                     metavar='N', help='list of net speeds in mega bytes')
-    parser.add_argument('--delay_coefficient_list', type=str, default=[16, 22, 54, 72, 256],
+    parser.add_argument('--delay_coefficient_list', type=str, default=[16, 22, 54, 72, 256],  # 1/ [27, 21, 12, 6.5, 3.2]
                     metavar='N', help='list of delay coefficients')
     
     args = parser.parse_args()
@@ -200,13 +199,16 @@ wandb.init(
 )
 
 
-SFL_tier = resnet18_SFL_tier
+
 SFL_local_tier = resnet56_SFL_local_tier_7
 
 ### model selection
 
 
-class_num = 10
+if args.dataset == 'cifar10':
+    class_num = 10
+elif args.dataset == 'cifar100':
+    class_num = 100
 
 if args.whether_FedAVG_base:
     if args.model == 'resnet56_7':
@@ -232,6 +234,12 @@ elif args.model == 'resnet56_7' and args.whether_local_loss:
     num_tiers = 7
     ## global model
     init_glob_model = resnet56_SFL_fedavg_base(classes=class_num,tier=1, fedavg_base = True)
+    
+elif args.model == 'resnet110_7' and args.whether_local_loss:
+    SFL_local_tier = resnet110_SFL_local_tier_7
+    num_tiers = 7
+    ## global model
+    init_glob_model = resnet110_SFL_fedavg_base(classes=class_num,tier=1, fedavg_base = True)
 
 elif args.model == 'resnet56_7' and not args.whether_local_loss:
     SFL_local_tier = resnet56_SFL_tier_7
@@ -1429,7 +1437,8 @@ class Client(object):
         # clients log
         wandb.log({"Client{}_DcorLoss".format(idx): float(sum(Dcorloss_client_train)), "epoch": iter}, commit=False)
         # wandb.log({"Client{}_Training_Duration (s)".format(idx): time_client, "epoch": iter}, commit=False)
-        # print(f"Client{idx}_Training_Duration: {time_client:,.3f} (s)")
+        wandb.log({"Client{}_time_not_scaled (s)".format(idx): time_client, "epoch": iter}, commit=False)
+        print(f"Client{idx}_Training_Duration_not_scaled: {time_client:,.3f} (s)")
         
         if args.whether_FedAVG_base:
             return net.state_dict(), time_client, client_intermediate_data_size, sum(epoch_loss) / len(epoch_loss), sum(epoch_acc) / len(epoch_acc) 

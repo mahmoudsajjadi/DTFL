@@ -132,7 +132,7 @@ def add_args(parser):
     parser.add_argument('--rounds', default=100, type=int)
     parser.add_argument('--whether_local_loss', default=True, type=bool)
     parser.add_argument('--whether_local_loss_v2', default=False, type=bool)
-    parser.add_argument('--whether_FedAVG_base', default=1, type=int) # this is for base line of fedavg
+    parser.add_argument('--whether_FedAVG_base', default=0, type=int) # this is for base line of fedavg
     parser.add_argument('--whether_multi_tier', default=True, type=bool)
     parser.add_argument('--whether_federation_at_clients', default=True, type=bool)
     parser.add_argument('--whether_aggregated_federation', default=1, type=int)
@@ -291,30 +291,14 @@ def compute_delay(data_transmitted_client:float, net_speed:float, delay_coeffici
     return simulated_delay
 
 net_speed_list = np.array([100, 200, 500]) * 1024000 ** 2  # MB/s: speed for transmitting data
-#net_speed_list = np.array([10, 10, 10, 10, 10]) * 102400 ** 2  # MB/s: speed for transmitting data
 net_speed_weights = [0.5, 0.25, 0.25]  # weights for each speed level
 net_speed = random.choices(net_speed_list, weights=net_speed_weights, k=args.client_number)
 
-# net_speed_list = list(np.array([100,50,50,50,10]) * 1024 ** 2)
-# Convert net_speed_list to a numpy array and scale it
-# print(args.net_speed_list, type(args.net_speed_list))
-# args.net_speed_list = [int(i) for i in args.net_speed_list.split()]
-# print(args.net_speed_list, type(args.net_speed_list))
+
 net_speed_list = list(np.array(args.net_speed_list) * 1024 ** 2)
 
-#net_speed_list = list(np.array([10,10,10,10,10]) * 10240000 ** 2)
 net_speed = net_speed_list * (args.client_number // 5 + 1)
 
-# delay_coefficient_list = [1000,2000,2500,3000,10000]
-# delay_coefficient = random.choices(delay_coefficient_list, k=args.client_number)
-# delay_coefficient = [16,20,32,72,256] * (args.client_number // 5 + 1)  # coeffieient list for simulation computational power
-# delay_coefficient = [16,16,16,16,16] * 100 # to check and debug
-
-# delay_coefficient = list(np.array(delay_coefficient)/10)
-
-# delay_coefficient_list = [16,22,54,72,256]
-# args.delay_coefficient_list = [int(i) for i in args.delay_coefficient_list.split()]
-#delay_coefficient_list = [16,16,16,16,16]
 delay_coefficient_list = list(np.array(args.delay_coefficient_list)/4)
 
 delay_coefficient = delay_coefficient_list * (args.client_number // 5 + 1)  # coeffieient list for simulation computational power
@@ -350,7 +334,7 @@ lr = args.lr
 
 # data transmmission
 global data_transmit
-data_transmited_fl = 0 # model parameter 
+model_parameter_data_size = 0 # model parameter 
 data_transmited_sl = 0 # intermediate data
 
 whether_distillation_on_the_server =args.whether_distillation_on_the_server
@@ -582,25 +566,15 @@ if args.whether_pretrained_on_client == 1 and False:
                 logging.info(name)
                 params_featrue_extractor[name] = param
         
-        # client_model = resnet8_56(n_classes)  -> net_glob_client_tier[1]
-        
         logging.info("pretrained:")
         for i in range(1, num_tiers+1):
             for name, param in net_glob_client_tier[i].named_parameters():
                 if name.startswith("conv1"):
                     param.data = params_featrue_extractor[name]
                     param.data.requires_grad_(True) # Mahmoud
-                    # if args.whether_training_on_client == 0:
-                    #     param.requires_grad = False
                 elif name.startswith("bn1") and not name.startswith("fc"):
                     param.data = params_featrue_extractor[name]
                     param.data.requires_grad_(True) # Mahmoud
-                    # if args.whether_training_on_client == 0:
-                    #     param.requires_grad = False
-                # elif name.startswith("layer1"):
-                #     param.data = params_featrue_extractor[name]
-                    # if args.whether_training_on_client == 0:
-                    #     param.requires_grad = False
             logging.info(net_glob_client_tier[i])
 
 
@@ -775,20 +749,7 @@ for i in range(1, num_tiers+1):
     net_glob_server_tier[i].to(device)
 
 net_glob_server.to(device)
-# print(net_glob_server)   
-# wandb.watch(net_glob_server)
-   
 
-#global_model = resnet56_SFL_fedavg_base(classes=class_num, tier=1, fedavg_base = True)
-#global_model = resnet56_SFL_fedavg_base(classes=class_num,tier=1, fedavg_base = True)
-#print(global_model.state_dict().keys())
-
-#global_model = SFL_local_tier(classes=class_num,tier=1, fedavg_base = True)
-
-    
-# print(net_glob_server_tier[i].state_dict().keys())
-
-#resnet56_SFL_fedavg_base
 
 #===================================================================================
 # For Server Side Loss and Accuracy 
@@ -935,12 +896,7 @@ elif args.version == 2:
     net_server = copy.deepcopy(net_model_server[0]).to(device)
     net_server = copy.deepcopy(net_model_server_tier[client_tier[0]]).to(device)
         
-# for i in range(1, num_tiers+1): # chenge to only one model for each server tier type
-#     net_model_server_tier[i] = net_glob_server_tier[i]
 
-# for t in range(1,num_tiers):  # check number of model in server and client
-#     net_model_client_tier[t] = net_glob_client_tier[t]
-# net_model_server_tier[] = [net_glob_server for i in range(num_users)]
 
 #optimizer_server = torch.optim.Adam(net_server.parameters(), lr = lr)
 optimizer_server_glob =  torch.optim.Adam(net_server.parameters(), lr=lr, weight_decay=args.wd, amsgrad=True) # from fedgkt code
@@ -952,14 +908,6 @@ new_lr = lr
 min_lr = args.lr_min
 
 times_in_server = []
-# if args.optimizer == "Adam":
-#     optimizer_server =  torch.optim.Adam(net_server.parameters(), lr=lr, weight_decay=args.wd, amsgrad=True) # from fedgkt code
-# elif args.optimizer == "SGD":
-#     optimizer_server =  torch.optim.SGD(net_server.parameters(), lr=lr, momentum=0.9,
-#                                           nesterov=True,
-#                                           weight_decay=args.wd)
-# scheduler_server = ReduceLROnPlateau(optimizer_server, 'max', factor=0.7, patience=-1, threshold=0.0000001)
-# scheduler_server = ReduceLROnPlateau(optimizer_server, 'max')
         
         
 # Server-side function associated with Training 
@@ -1230,7 +1178,7 @@ def evaluate_server(fx_client, y, idx, len_batch, ell):
             count2 = 0
             
             # prGreen('Client{} Test =>                   \tAcc: {:.3f} \tLoss: {:.4f}'.format(idx, acc_avg_test, loss_avg_test))
-            prGreen('Update Model Test =>                   \tAcc: {:.3f} \tLoss: {:.4f}'.format(acc_avg_test, loss_avg_test))
+            prGreen('Global Model Test =>                   \tAcc: {:.3f} \tLoss: {:.4f}'.format(acc_avg_test, loss_avg_test))
             #prGreen('Client{} Test =>                   \tAcc: {:.3f} \tLoss: {:.4f}'.format(idx, acc_avg_test, loss_avg_test))
             wandb.log({"Client{}_Test_Accuracy".format(idx): acc_avg_test, "epoch": 22}, commit=False)
 
@@ -1278,9 +1226,11 @@ def evaluate_server(fx_client, y, idx, len_batch, ell):
                     
                     
                               
-                print("====================== SERVER V1==========================")
+                print("==========================================================")
+                print("{:^58}".format("DTFL Performance"))
+                print("----------------------------------------------------------")
                 print(' Train: Round {:3d}, Avg Accuracy {:.3f} | Avg Loss {:.3f}'.format(ell, acc_avg_all_user_train, loss_avg_all_user_train))
-                print(' Test: Round {:3d}, Avg Accuracy {:.3f} | Avg Loss {:.3f}'.format(ell, acc_avg_all_user, loss_avg_all_user))
+                print(' Test:  Round {:3d}, Avg Accuracy {:.3f} | Avg Loss {:.3f}'.format(ell, acc_avg_all_user, loss_avg_all_user))
                 print("==========================================================")
                 
                 wandb.log({"Server_Training_Accuracy": acc_avg_all_user_train, "epoch": ell}, commit=False)
@@ -1531,8 +1481,10 @@ class Client(object):
             if args.whether_FedAVG_base:
                 epoch_loss.append(sum(batch_loss)/len(batch_loss))
                 epoch_acc.append(sum(batch_acc)/len(batch_acc))
-                prGreen('Client{} Test =>                     \tAcc: {:.3f} \tLoss: {:.4f}'
-                        .format(self.idx, epoch_acc[-1], epoch_loss[-1])) 
+                # prGreen('Client{} Test =>                     \tAcc: {:.3f} \tLoss: {:.4f}'
+                #         .format(self.idx, epoch_acc[-1], epoch_loss[-1])) 
+                prGreen('Global Model Test =>                     \tAcc: {:.3f} \tLoss: {:.4f}'
+                        .format(epoch_acc[-1], epoch_loss[-1])) 
                 
                 return sum(epoch_loss) / len(epoch_loss), sum(epoch_acc) / len(epoch_acc)
             
@@ -1560,8 +1512,10 @@ class Client(object):
                 batch_acc.append(acc.item())
             epoch_loss.append(sum(batch_loss)/len(batch_loss))
             epoch_acc.append(sum(batch_acc)/len(batch_acc))
-            prGreen('Client{} Test =>                     \tAcc: {:.3f} \tLoss: {:.4f}'
-                    .format(self.idx, epoch_acc[-1], epoch_loss[-1])) 
+            # prGreen('Client{} Test =>                     \tAcc: {:.3f} \tLoss: {:.4f}'
+            #         .format(self.idx, epoch_acc[-1], epoch_loss[-1])) 
+            prGreen('Model Test =>                     \tAcc: {:.3f} \tLoss: {:.4f}'
+                    .format(epoch_acc[-1], epoch_loss[-1])) # After model update the test for all agent should be same. because the test dataset is same and after convergence all agents model are same
                 
             return sum(epoch_loss) / len(epoch_loss), sum(epoch_acc) / len(epoch_acc)
             #prRed('Client{} Test => Epoch: {}'.format(self.idx, ell))
@@ -1679,8 +1633,6 @@ if args.dataset == "HAM10000":
     train_data_local_num_dict = {key: len(value) for key, value in dict_users.items()}
 
 # Data transmission
-data_transmitelist_sl =[]
-data_transmitelist_fl =[]
 client_tier_all = []
 client_tier_all.append(copy.deepcopy(client_tier))
 total_training_time = 0
@@ -1903,11 +1855,9 @@ for iter in range(epochs):
         for k in w_glob_client_tier[client_tier[idx]]:
             data_server_to_client += sys.getsizeof(w_glob_client_tier[client_tier[idx]][k].storage())
         simulated_delay[idx] = data_server_to_client / net_speed[idx]
-            # wandb.log({"Client{}_Tier".format(i): client_tier[i], "epoch": iter}, commit=False)
             
             
-            
-        data_transmited_fl_client = 0
+        client_model_parameter_data_size = 0
         time_train_test_s = time.time()
         if whether_multi_tier:
             net_glob_client = net_model_client_tier[client_tier[idx]]
@@ -1969,10 +1919,10 @@ for iter in range(epochs):
         
         if not whether_GKT_local_loss:   # this is sum of model size of all clients sent to server
             for k in w_client:
-                data_transmited_fl_client = data_transmited_fl_client + sys.getsizeof(w_client[k].storage())
-        data_transmited_fl += data_transmited_fl_client         
+                client_model_parameter_data_size = client_model_parameter_data_size + sys.getsizeof(w_client[k].storage())
+        model_parameter_data_size += client_model_parameter_data_size         
         
-        data_transmitted_client = data_transmited_sl_client + data_transmited_fl_client
+        data_transmitted_client = data_transmited_sl_client + client_model_parameter_data_size
         
         # replace last observation with new observation for data transmission
         data_transmitted_client_all[idx] = data_transmitted_client
@@ -1982,7 +1932,7 @@ for iter in range(epochs):
 
         wandb.log({"Client{}_Actual_Delay".format(idx): simulated_delay[idx], "epoch": iter}, commit=False)
         wandb.log({"Client{}_Data_Transmission(MB)".format(idx): data_transmitted_client/1024**2, "epoch": iter}, commit=False)
-        wandb.log({"Client{}_Data_Transmission(MB)_Model_Parameters".format(idx): data_transmited_fl_client/1024**2, "epoch": iter}, commit=False)
+        wandb.log({"Client{}_Data_Transmission(MB)_Model_Parameters".format(idx): client_model_parameter_data_size/1024**2, "epoch": iter}, commit=False)
         wandb.log({"Client{}_Data_Transmission(MB)_Intermediate_data".format(idx): data_transmited_sl_client/1024**2, "epoch": iter}, commit=False)
     server_wait_time = (max(simulated_delay * client_epoch) - min(simulated_delay * client_epoch))
     wandb.log({"Server_wait_time": server_wait_time, "epoch": iter}, commit=False)
@@ -2001,12 +1951,8 @@ for iter in range(epochs):
     time_train_server_train_all = 0
      
     simulated_delay[simulated_delay==0] = np.nan  # convert zeros to nan, for when some clients not involved in the epoch
-    # simulated_delay_historical_df = simulated_delay_historical_df.append(pd.DataFrame(simulated_delay).T, ignore_index = True)  # old version
     simulated_delay_historical_df = pd.concat([simulated_delay_historical_df, pd.DataFrame(simulated_delay).T], ignore_index=True)
-    # print(simulated_delay_historical_df)
-    # client_observed_times = client_observed_times.append(pd.DataFrame(client_observed_time).T, ignore_index = True) # this is only time for training, old version
     client_observed_times = pd.concat([client_observed_times, pd.DataFrame(client_observed_time).T], ignore_index=True)
-    # print('client_observed_times: ',client_observed_times)
     client_epoch_last = client_epoch.copy()
     
     # Generate a list of randomly chosen user indices for the next round
@@ -2022,8 +1968,6 @@ for iter in range(epochs):
                                                     max_time_list = max_time_list, idxs_users = idxs_users,
                                                     data_transmitted_client_all = data_transmitted_client_all,
                                                     net_speed = net_speed) # assign next tier and model
-        #print(max_time_list)
-        #print(max_time_list[-1])                                            
         wandb.log({"max_time": float(max_time_list.loc[len(max_time_list)-1]), "epoch": iter}, commit=False)
                                                     
     client_tier_all.append(copy.deepcopy(client_tier))
@@ -2037,7 +1981,7 @@ for iter in range(epochs):
     # Ater serving all clients for its local epochs------------
     # Fed  Server: Federation process at Client-Side-----------
     print("-----------------------------------------------------------")
-    print("------ FedServer: Federation process at Client-Side ------- ")
+    print("{:^59}".format("Model Aggregation"))
     print("-----------------------------------------------------------")
     
     # calculate the number of samples in each client
@@ -2141,7 +2085,7 @@ for iter in range(epochs):
             w_glob_client = FedAvg(w_locals_client) # fedavg at client side  
             net_glob_client.load_state_dict(w_glob_client)  
             for k in w_client:      # this is sum of model size of all clients server sent to each clients
-                data_transmited_fl = data_transmited_fl + len(w_locals_client) * sys.getsizeof(w_glob_client[k].storage())
+                model_parameter_data_size = model_parameter_data_size + len(w_locals_client) * sys.getsizeof(w_glob_client[k].storage())
             
         else:
             if intra_tier_fedavg:
@@ -2155,15 +2099,13 @@ for iter in range(epochs):
                 
             for t in range(1,num_tiers+1):
                 for k in w_glob_client_tier[t]:      # this is sum of model size of all clients server sent to each clients
-                    data_transmited_fl = data_transmited_fl + client_number_tier[t-1] * sys.getsizeof(w_glob_client_tier[t][k].storage())
+                    model_parameter_data_size = model_parameter_data_size + client_number_tier[t-1] * sys.getsizeof(w_glob_client_tier[t][k].storage())
             
     
-    data_transmitelist_fl.append(data_transmited_fl/1024**2)
-    data_transmitelist_sl.append(data_transmited_sl/1024**2)
-    print(f'Total Data Transferred FL {(data_transmited_fl/1024**2):,.2f} Mega Byte')
+    print(f'Total Model Parameter Data Size Transferred {(model_parameter_data_size/1024**2):,.2f} Mega Byte')
     print(f'Total Data Transferred SL {(data_transmited_sl/1024**2):,.2f} Mega Byte')
 
-    wandb.log({"Model_Parameter_Data_Transmission(MB) ": data_transmited_fl/1024**2, "epoch": iter}, commit=False)
+    wandb.log({"Model_Parameter_Data_Transmission(MB) ": model_parameter_data_size/1024**2, "epoch": iter}, commit=False)
     wandb.log({"Intermediate_Data_Transmission(MB) ": data_transmited_sl/1024**2, "epoch": iter}, commit=True)
     
     

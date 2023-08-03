@@ -718,7 +718,7 @@ def tier_scheduler(client_tier, client_times, num_tiers, server_wait_time, clien
     # for i in range(num_users):
     #     client_tier[i] = i % 7 + 1
     
-    if num_users == 16 and False:
+    if num_users == 10 and True:
          client_tier = {0: 1,
          1: 2,
          2: 3,
@@ -728,13 +728,7 @@ def tier_scheduler(client_tier, client_times, num_tiers, server_wait_time, clien
          6: 7,
          7: 1,
          8: 2,
-         9: 3,
-         10: 4,
-         11: 5,
-         12: 6,
-         13: 7,
-         14: 1,
-         15: 2}
+         9: 3}
     elif num_users == 16 and False:
         for i in range(0,num_users):
             client_tier[i] = (((step + i * 10 )//10) % (num_tiers - 2 )) + 1 + 2

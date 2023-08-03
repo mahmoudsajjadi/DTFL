@@ -54,10 +54,15 @@ def aggregated_fedavg(w_locals_server_tier, w_locals_client_tier, num_tiers, num
         #     tier_max = 1
         # for j in range(0, len(w_locals_client_tier[i])):
         if whether_local_loss and not local_v2:
-            #del w_locals_client_tier[i]['fc.bias']
-            #del w_locals_client_tier[i]['fc.weight']
-            del w_locals_client_tier[i]['module.fc.bias']
-            del w_locals_client_tier[i]['module.fc.weight']
+            del w_locals_client_tier[i]['fc.bias']
+            del w_locals_client_tier[i]['fc.weight']
+            #del w_locals_client_tier[i]['module.fc.bias']
+            #del w_locals_client_tier[i]['module.fc.weight']
+            
+            if 'module.fc.bias' in w_locals_client_tier[i]:
+                del w_locals_client_tier[i]['module.fc.bias']
+            if 'module.fc.weight' in w_locals_client_tier[i]:
+                del w_locals_client_tier[i]['module.fc.weight']
         # if 
         # del w_locals_client_tier[i]['linear_2.bias']
         # del w_locals_client_tier[i]['linear_2.weight']
@@ -87,13 +92,13 @@ def aggregated_fedavg(w_locals_server_tier, w_locals_client_tier, num_tiers, num
                 c += 1
         for i in range(0, len(w_locals_server_tier)):
             if k in w_locals_server_tier[i]:
-                if k == 'fc.bias':
-                    print(k)
+                # if k == 'fc.bias':
+                #     print(k)
                 w_avg[k] += w_locals_server_tier[i][k] * client_sample[i]
                 # print(k)
                 c += 1
-     #   if c != num_users:# and False:
-      #      print(k, c)            
+        if c != num_users:# and False:
+            print(k, c)            
         # w_avg[k] = torch.div(w_avg[k], num_users)
         #w_avg[k] = torch.div(w_avg[k], len(w_locals_server_tier))  # devide by number of involved clients
         w_avg[k] = torch.div(w_avg[k], sum(client_sample))  # devide by number of involved clients

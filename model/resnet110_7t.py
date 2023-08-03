@@ -1189,22 +1189,22 @@ def resnet56_SFL_local_tier_7(classes, tier=5, **kwargs):
         if tier == 1:#1 or tier == 12:
             net_glob_client = ResNet(Bottleneck, [3, 3, 3, 3, 3, 3], num_classes = classes, tier = tier, local_loss=True, **kwargs) 
             net_glob_server = ResNet_server(Bottleneck, [0, 0, 0, 0, 0, 0], num_classes = classes, tier = tier, local_loss=True, **kwargs)
-        if tier == 2:#1:
+        elif tier == 2:#1:
             net_glob_client = ResNet(Bottleneck, [3, 3, 3, 3, 3, 0], num_classes = classes, tier = tier, local_loss=True, **kwargs) 
             net_glob_server = ResNet_server(Bottleneck, [0, 0, 0, 0, 0, 3], num_classes = classes, tier = tier, local_loss=True, **kwargs)
-        if tier == 3:# or tier == 2:# or tier == 4:# or tier == 2 or tier == 1:
+        elif tier == 3:# or tier == 2:# or tier == 4:# or tier == 2 or tier == 1:
             net_glob_client = ResNet(Bottleneck, [3, 3, 3, 3, 0, 0], num_classes = classes, tier = tier, local_loss=True, **kwargs) 
             net_glob_server = ResNet_server(Bottleneck, [0, 0, 0, 0, 3, 3], num_classes = classes, tier = tier, local_loss=True, **kwargs)
-        if tier == 4:
+        elif tier == 4:
             net_glob_client = ResNet(Bottleneck, [3, 3, 3, 0, 0, 0], num_classes = classes, tier = tier, local_loss=True, **kwargs) 
             net_glob_server = ResNet_server(Bottleneck, [0, 0, 0, 3, 3, 3], num_classes = classes, tier = tier, local_loss=True, **kwargs)
-        if tier == 5:# or tier == 4 or tier == 3:
+        elif tier == 5:# or tier == 4 or tier == 3:
             net_glob_client = ResNet(Bottleneck, [3, 3, 0, 0, 0, 0], num_classes = classes, tier = tier, local_loss=True, **kwargs) # [1, 0, 0] and [0, 0, 0] are the same
             net_glob_server = ResNet_server(Bottleneck, [0, 0, 3, 3, 3, 3], num_classes = classes, tier = tier, local_loss=True, **kwargs)
-        if tier == 6:
+        elif tier == 6:
             net_glob_client = ResNet(Bottleneck, [3, 0, 0, 0, 0, 0], num_classes = classes, tier = tier, local_loss=True, **kwargs) 
             net_glob_server = ResNet_server(Bottleneck, [0, 3, 3, 3, 3, 3], num_classes = classes, tier = tier, local_loss=True, **kwargs)
-        if tier == 7:# or tier == 6:
+        elif tier == 7:# or tier == 6:
             net_glob_client = ResNet(Bottleneck, [0, 0, 0, 0, 0, 0], num_classes = classes, tier = tier, local_loss=True, **kwargs) # [1, 0, 0] and [0, 0, 0] are the same
             net_glob_server = ResNet_server(Bottleneck, [3, 3, 3, 3, 3, 3], num_classes = classes, tier = tier, local_loss=True, **kwargs)
 
@@ -1238,6 +1238,10 @@ def resnet56_SFL_tier_7(classes, tier=5, **kwargs):
 
 
 def resnet56_SFL_fedavg_base(classes, tier=5, **kwargs):
+    net_glob_client = ResNet(Bottleneck, [3, 3, 3, 3, 3, 3], num_classes = classes, tier = tier, local_loss=True, **kwargs) 
+    return net_glob_client
+
+def resnet110_SFL_fedavg_base(classes, tier=5, **kwargs):
     net_glob_client = ResNet(Bottleneck, [6, 6, 6, 6, 6, 6], num_classes = classes, tier = tier, local_loss=True, **kwargs) 
     return net_glob_client
 
