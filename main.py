@@ -124,7 +124,7 @@ def add_args(parser):
     parser.add_argument('--client_epoch', default=1, type=int)
     parser.add_argument('--client_number', type=int, default=5, metavar='NN',
                         help='number of workers in a distributed cluster')
-    parser.add_argument('--batch_size', type=int, default=2, metavar='N',
+    parser.add_argument('--batch_size', type=int, default=1, metavar='N',
                         help='input batch size for training (default: 64)')
     parser.add_argument('--rounds', default=300, type=int)
     parser.add_argument('--whether_local_loss', default=True, type=bool)
@@ -411,8 +411,8 @@ if args.dataset == "cinic10":
 sataset_size = {}
 if args.dataset != "HAM10000" and args.dataset != "cinic10":
     for i in range(0,args.client_number):
-        print(f'Client {i} :', dict(Counter(dataset_test[i].dataset.target)))
-        print(f'Client {i} :', dict(Counter(dataset_train[i].dataset.target)))
+        # print(f'Client {i} :', dict(Counter(dataset_test[i].dataset.target)))
+        # print(f'Client {i} :', dict(Counter(dataset_train[i].dataset.target)))
         sataset_size[i] = sum(dict(Counter(dataset_train[i].dataset.target)).keys())
     avg_dataset = sum(sataset_size.values()) / len(sataset_size)
     
@@ -1438,7 +1438,7 @@ class Client(object):
         wandb.log({"Client{}_DcorLoss".format(idx): float(sum(Dcorloss_client_train)), "epoch": iter}, commit=False)
         # wandb.log({"Client{}_Training_Duration (s)".format(idx): time_client, "epoch": iter}, commit=False)
         wandb.log({"Client{}_time_not_scaled (s)".format(idx): time_client, "epoch": iter}, commit=False)
-        print(f"Client{idx}_Training_Duration_not_scaled: {time_client:,.3f} (s)")
+        # print(f"Client{idx}_Training_Duration_not_scaled: {time_client:,.3f} (s)")
         
         if args.whether_FedAVG_base:
             return net.state_dict(), time_client, client_intermediate_data_size, sum(epoch_loss) / len(epoch_loss), sum(epoch_acc) / len(epoch_acc) 
@@ -1778,7 +1778,7 @@ data_transmitted_client_all = {}
 
 # Main loop over rounds    
 for iter in range(epochs):
-    if iter == int(10) and False:
+    if iter == int(5) and True:
         delay_coefficient[0] = delay_coefficient_list[2]
         delay_coefficient[1] = delay_coefficient_list[3]
         delay_coefficient[2] = delay_coefficient_list[4]

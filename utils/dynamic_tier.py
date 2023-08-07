@@ -36,8 +36,8 @@ def find_straggler(client_tier_time : list, num_users: int, client_tier_last: li
         index of slowest client
 
     '''
-    
-    clients_min_estimation_time = []
+    client_estimation_time_all_tiers = {}
+    clients_min_estimation_time = [0] * num_users
     for c in idxs_users:
         # check if this client has history
         if len(client_tier_time[c,client_tier_last[c]]) < 1:
@@ -52,15 +52,19 @@ def find_straggler(client_tier_time : list, num_users: int, client_tier_last: li
         # Compute computation and communication estimation for each tier
         tier_computation_estimation = np.array([value for value in tier_ratios.values()]) * clinet_computaion_time / tier_ratios[client_tier_last[c]]
         tier_communication_estimation = np.array([value for value in tier_intermediate_data_profile.values()]) / net_speed[c]
-        client_estimation_time_all_tiers = list(tier_computation_estimation + tier_communication_estimation)
+        client_estimation_time_all_tiers[c] = list(tier_computation_estimation + tier_communication_estimation)
 
 
         
         # client_estimation_time_all_tiers = (list(np.array([value for value in tier_ratios.values()]) * clinet_computaion_time / tier_ratios[client_tier_last[c]]) # computation estimation
         #                                     + np.array([value for value in tier_intermediate_data_profile.values()]) / net_speed[c] ) # commmunication estimation
         
-        clients_min_estimation_time.append(min(client_estimation_time_all_tiers))
-        print(client_estimation_time_all_tiers)
+        clients_min_estimation_time[c] = (min(client_estimation_time_all_tiers[c]))
+    # print(client_estimation_time_all_tiers)
+    
+    sorted_items = sorted(client_estimation_time_all_tiers.items(), key=lambda x: x[0])
+    for key, value in sorted_items:
+        print(f"{key}: {value}")
     
     # check if all new 
     if len(clients_min_estimation_time) < 1:
@@ -638,7 +642,7 @@ def tier_scheduler(client_tier, client_times, num_tiers, server_wait_time, clien
 
     outliers = 3
     # Define a threshold for time difference as a fraction of the estimated time
-    time_diff_threshold = 0.05
+    time_diff_threshold = 0.2
     
     # tier_ratios = {1:9.1, 2:6.3, 3:5.1, 4:4.6, 5:3.3, 6:2.5, 7:1.0}
     # tier_ratios = {1:11.48, 2:10.22, 3:8.39, 4:6.62, 5:4.94, 6:2.92, 7:1.0} # should update for each model definition
@@ -652,6 +656,7 @@ def tier_scheduler(client_tier, client_times, num_tiers, server_wait_time, clien
     # check the straggler in the next epoch, for next epoch clients
     # print('net_speed' , net_speed)
     # print('data_transmitted_client_all', data_transmitted_client_all)
+    # Especially when not all agents are involved in the training, it is necessary to identify stragglers in each round.
     straggler_index, max_estimation_time = find_straggler(client_tier_time, num_users, client_tier_last,
                        net_speed, data_transmitted_client_all, tier_ratios,
                        tier_intermediate_data_profile, idxs_users)
