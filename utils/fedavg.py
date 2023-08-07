@@ -54,8 +54,10 @@ def aggregated_fedavg(w_locals_server_tier, w_locals_client_tier, num_tiers, num
         #     tier_max = 1
         # for j in range(0, len(w_locals_client_tier[i])):
         if whether_local_loss and not local_v2:
-            del w_locals_client_tier[i]['fc.bias']
-            del w_locals_client_tier[i]['fc.weight']
+            if 'fc.bias' in w_locals_client_tier[i]:
+                del w_locals_client_tier[i]['fc.bias']
+            if 'fc.wight' in w_locals_client_tier[i]:
+                del w_locals_client_tier[i]['fc.weight']
             #del w_locals_client_tier[i]['module.fc.bias']
             #del w_locals_client_tier[i]['module.fc.weight']
             
