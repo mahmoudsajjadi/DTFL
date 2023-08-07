@@ -77,7 +77,7 @@ def find_straggler(client_tier_time : list, num_users: int, client_tier_last: li
     
     max_estimation_time = np.mean(client_tier_time[straggler_index,SMALLEST_TIER][-2:])
     
-    return clients_min_estimation_time.index(max_estimation_time), max_estimation_time
+    return straggler_index, max_estimation_time
         
         
         
