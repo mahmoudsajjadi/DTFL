@@ -641,7 +641,8 @@ def tier_scheduler(client_tier, client_times, num_tiers, server_wait_time, clien
     time_diff_threshold = 0.05
     
     # tier_ratios = {1:9.1, 2:6.3, 3:5.1, 4:4.6, 5:3.3, 6:2.5, 7:1.0}
-    tier_ratios = {1:11.48, 2:10.22, 3:8.39, 4:6.62, 5:4.94, 6:2.92, 7:1.0} # should update for each experiemtns
+    # tier_ratios = {1:11.48, 2:10.22, 3:8.39, 4:6.62, 5:4.94, 6:2.92, 7:1.0} # should update for each model definition
+    tier_ratios = {1:20.14303965,2:17.76082888, 3:14.42420928, 4:11.21465103, 5:7.778916486, 6:4.269412914, 7:1.0} # should update for each model definition
     MB = 1024 ** 2
     tier_intermediate_data_profile = {1:314.5 * MB, 2:313.9 * MB, 3:625.6 * MB, 4:625.2 * MB, 5:1250.1 * MB, 6:1250.3 * MB, 7:312.6 * MB}
     # tier_intermediate_data = data_transmitted_client_all
@@ -714,11 +715,11 @@ def tier_scheduler(client_tier, client_times, num_tiers, server_wait_time, clien
     client_tier[straggler_index] = num_tiers
     print('slow_index',straggler_index)
     
-    manual_tier = 6
+    manual_tier = 1
     # for i in range(num_users):
     #     client_tier[i] = i % 7 + 1
     
-    if num_users == 10 and True:
+    if num_users == 10 and False:
          client_tier = {0: 1,
          1: 2,
          2: 3,
@@ -729,9 +730,10 @@ def tier_scheduler(client_tier, client_times, num_tiers, server_wait_time, clien
          7: 1,
          8: 2,
          9: 3}
-    elif num_users == 16 and False:
+    elif num_users == 10 and True:
         for i in range(0,num_users):
-            client_tier[i] = (((step + i * 10 )//10) % (num_tiers - 2 )) + 1 + 2
+            client_tier[i] = manual_tier
+            #client_tier[i] = (((step + i * 10 )//10) % (num_tiers - 2 )) + 1 + 2
     elif False:
          for i in range(0,100):    
              client_tier[i] = manual_tier

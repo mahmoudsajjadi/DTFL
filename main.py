@@ -99,8 +99,8 @@ def add_args(parser):
     
     # Optimization related arguments
     parser.add_argument('--lr', default=0.001, type=float)
-    parser.add_argument('--lr_factor', default=0.3, type=float)
-    parser.add_argument('--lr_patience', default=10, type=float)
+    parser.add_argument('--lr_factor', default=0.9, type=float)
+    parser.add_argument('--lr_patience', default=5, type=float)
     parser.add_argument('--lr_min', default=0, type=float)
     parser.add_argument('--whether_dynamic_lr_client', default=1, type=int)
     parser.add_argument('--optimizer', default="Adam", type=str, help='optimizer: SGD, Adam, etc.')
@@ -122,11 +122,11 @@ def add_args(parser):
         
     # Federated learning related arguments
     parser.add_argument('--client_epoch', default=1, type=int)
-    parser.add_argument('--client_number', type=int, default=10, metavar='NN',
+    parser.add_argument('--client_number', type=int, default=5, metavar='NN',
                         help='number of workers in a distributed cluster')
-    parser.add_argument('--batch_size', type=int, default=100, metavar='N',
+    parser.add_argument('--batch_size', type=int, default=2, metavar='N',
                         help='input batch size for training (default: 64)')
-    parser.add_argument('--rounds', default=100, type=int)
+    parser.add_argument('--rounds', default=300, type=int)
     parser.add_argument('--whether_local_loss', default=True, type=bool)
     parser.add_argument('--whether_local_loss_v2', default=False, type=bool)
     parser.add_argument('--whether_FedAVG_base', default=0, type=int) # this is for base line of fedavg
@@ -164,9 +164,9 @@ def add_args(parser):
     
     
     # Add the argument for simulation like net_speed_list
-    parser.add_argument('--net_speed_list', type=str, default=[100, 50, 50, 50, 10],
+    parser.add_argument('--net_speed_list', type=str, default=[200, 100, 100, 100, 50],  #[100, 50, 50, 20, 10]
                     metavar='N', help='list of net speeds in mega bytes')
-    parser.add_argument('--delay_coefficient_list', type=str, default=[16, 20, 34, 72, 250],  # 1/ [27, 21, 12, 6.5, 3.2] ---  [16, 22, 54, 72, 256]   
+    parser.add_argument('--delay_coefficient_list', type=str, default=[16, 20, 34, 130, 250],  # 1/ [27, 21, 12, 6.5, 3.2] ---  [16, 22, 54, 72, 256]   
                     metavar='N', help='list of delay coefficients')
     
     args = parser.parse_args()
@@ -301,7 +301,7 @@ net_speed_weights = [0.5, 0.25, 0.25]  # weights for each speed level
 net_speed = random.choices(net_speed_list, weights=net_speed_weights, k=args.client_number)
 
 
-net_speed_list = list(np.array(args.net_speed_list) * 10240000 ** 2)
+net_speed_list = list(np.array(args.net_speed_list) * 1024 ** 2)
 
 net_speed = net_speed_list * (args.client_number // 5 + 1)
 
