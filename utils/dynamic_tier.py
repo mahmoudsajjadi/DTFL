@@ -4,6 +4,8 @@ import random
 import math
 
 
+SMALLEST_TIER = 7
+
 def index_of_greatest_smaller(lst, max_time):
     # Create a new list of all elements in lst that are greater than xx
     greater_lst = [num for num in lst if num <= max_time]
@@ -71,6 +73,9 @@ def find_straggler(client_tier_time : list, num_users: int, client_tier_last: li
         return -1, -1
     
     max_estimation_time = max(clients_min_estimation_time)
+    straggler_index = clients_min_estimation_time.index(max_estimation_time)
+    
+    max_estimation_time = np.mean(client_tier_time[straggler_index,SMALLEST_TIER][-2:])
     
     return clients_min_estimation_time.index(max_estimation_time), max_estimation_time
         
@@ -735,7 +740,7 @@ def tier_scheduler(client_tier, client_times, num_tiers, server_wait_time, clien
          7: 1,
          8: 2,
          9: 3}
-    elif num_users == 10 and True:
+    elif num_users == 10 and False:
         for i in range(0,num_users):
             client_tier[i] = manual_tier
             #client_tier[i] = (((step + i * 10 )//10) % (num_tiers - 2 )) + 1 + 2
