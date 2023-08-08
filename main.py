@@ -107,7 +107,7 @@ def add_args(parser):
     parser.add_argument('--wd', help='weight decay parameter;', type=float, default=5e-4)
 
     # Model related arguments
-    parser.add_argument('--model', type=str, default='resnet110_7', metavar='N',
+    parser.add_argument('--model', type=str, default='resnet56_7', metavar='N',
                         help='neural network used in training')
     
     
@@ -122,11 +122,11 @@ def add_args(parser):
         
     # Federated learning related arguments
     parser.add_argument('--client_epoch', default=1, type=int)
-    parser.add_argument('--client_number', type=int, default=5, metavar='NN',
+    parser.add_argument('--client_number', type=int, default=10, metavar='NN',
                         help='number of workers in a distributed cluster')
-    parser.add_argument('--batch_size', type=int, default=1, metavar='N',
+    parser.add_argument('--batch_size', type=int, default=100, metavar='N',
                         help='input batch size for training (default: 64)')
-    parser.add_argument('--rounds', default=300, type=int)
+    parser.add_argument('--rounds', default=100, type=int)
     parser.add_argument('--whether_local_loss', default=True, type=bool)
     parser.add_argument('--whether_local_loss_v2', default=False, type=bool)
     parser.add_argument('--whether_FedAVG_base', default=0, type=int) # this is for base line of fedavg
@@ -207,7 +207,7 @@ SFL_local_tier = resnet56_SFL_local_tier_7
 
 if args.dataset == 'cifar10':
     class_num = 10
-elif args.dataset == 'cifar100':
+elif args.dataset == 'cifar100' or args.dataset == 'cinic10':
     class_num = 100
 
 if args.whether_FedAVG_base:
@@ -1778,39 +1778,49 @@ data_transmitted_client_all = {}
 
 # Main loop over rounds    
 for iter in range(epochs):
-    if iter == int(5) and True:
+    if iter == int(50) and True:
         delay_coefficient[0] = delay_coefficient_list[2]
-        delay_coefficient[1] = delay_coefficient_list[3]
+        net_speed[0] = net_speed_list[2]
+        delay_coefficient[1] = delay_coefficient_list[4]
+        net_speed[1] = net_speed_list[4]
         delay_coefficient[2] = delay_coefficient_list[4]
+        net_speed[2] = net_speed_list[4]
         delay_coefficient[3] = delay_coefficient_list[0]
+        net_speed[3] = net_speed_list[0]
         delay_coefficient[4] = delay_coefficient_list[0]
+        net_speed[4] = net_speed_list[0]
         delay_coefficient[5] = delay_coefficient_list[4]
+        net_speed[5] = net_speed_list[4]
         delay_coefficient[6] = delay_coefficient_list[4]
+        net_speed[6] = net_speed_list[4]
         delay_coefficient[7] = delay_coefficient_list[0]
+        net_speed[7] = net_speed_list[0]
         delay_coefficient[8] = delay_coefficient_list[1]
+        net_speed[8] = net_speed_list[1]
         delay_coefficient[9] = delay_coefficient_list[1]
-    elif iter == int(20) and False:
-        delay_coefficient[0] = delay_coefficient_list[4]
-        delay_coefficient[1] = delay_coefficient_list[3]
-        delay_coefficient[2] = delay_coefficient_list[2]
-        delay_coefficient[3] = delay_coefficient_list[3]
-        delay_coefficient[4] = delay_coefficient_list[2]
-        delay_coefficient[5] = delay_coefficient_list[3]
-        delay_coefficient[6] = delay_coefficient_list[3]
-        delay_coefficient[7] = delay_coefficient_list[2]
-        delay_coefficient[8] = delay_coefficient_list[0]
-        delay_coefficient[9] = delay_coefficient_list[1]
-    elif iter == int(30) and False:
-        delay_coefficient[0] = delay_coefficient_list[4]
-        delay_coefficient[1] = delay_coefficient_list[2]
-        delay_coefficient[2] = delay_coefficient_list[4]
-        delay_coefficient[3] = delay_coefficient_list[3]
-        delay_coefficient[4] = delay_coefficient_list[2]
-        delay_coefficient[5] = delay_coefficient_list[1]
-        delay_coefficient[6] = delay_coefficient_list[3]
-        delay_coefficient[7] = delay_coefficient_list[0]
-        delay_coefficient[8] = delay_coefficient_list[1]
-        delay_coefficient[9] = delay_coefficient_list[2]
+        net_speed[9] = net_speed_list[1]
+    # elif iter == int(20) and False:
+    #     delay_coefficient[0] = delay_coefficient_list[4]
+    #     delay_coefficient[1] = delay_coefficient_list[3]
+    #     delay_coefficient[2] = delay_coefficient_list[2]
+    #     delay_coefficient[3] = delay_coefficient_list[3]
+    #     delay_coefficient[4] = delay_coefficient_list[2]
+    #     delay_coefficient[5] = delay_coefficient_list[3]
+    #     delay_coefficient[6] = delay_coefficient_list[3]
+    #     delay_coefficient[7] = delay_coefficient_list[2]
+    #     delay_coefficient[8] = delay_coefficient_list[0]
+    #     delay_coefficient[9] = delay_coefficient_list[1]
+    # elif iter == int(30) and False:
+    #     delay_coefficient[0] = delay_coefficient_list[4]
+    #     delay_coefficient[1] = delay_coefficient_list[2]
+    #     delay_coefficient[2] = delay_coefficient_list[4]
+    #     delay_coefficient[3] = delay_coefficient_list[3]
+    #     delay_coefficient[4] = delay_coefficient_list[2]
+    #     delay_coefficient[5] = delay_coefficient_list[1]
+    #     delay_coefficient[6] = delay_coefficient_list[3]
+    #     delay_coefficient[7] = delay_coefficient_list[0]
+    #     delay_coefficient[8] = delay_coefficient_list[1]
+    #     delay_coefficient[9] = delay_coefficient_list[2]
                 
         
     # If whether_FedAVG_base is True, initialize empty lists for train and test losses and accuracies

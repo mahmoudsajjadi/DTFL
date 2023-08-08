@@ -12,7 +12,8 @@ def index_of_greatest_smaller(lst, max_time):
     
     # If greater_lst is empty, return None
     if not greater_lst:
-        return None
+        # return None
+        return SMALLEST_TIER, lst[SMALLEST_TIER-1]
     
     # Find the smallest number in greater_lst and return its index in lst
     # smallest = max(greater_lst)
@@ -75,7 +76,9 @@ def find_straggler(client_tier_time : list, num_users: int, client_tier_last: li
     max_estimation_time = max(clients_min_estimation_time)
     straggler_index = clients_min_estimation_time.index(max_estimation_time)
     
-    max_estimation_time = np.mean(client_tier_time[straggler_index,SMALLEST_TIER][-2:])
+    # max_estimation_time = np.mean(client_tier_time[straggler_index,SMALLEST_TIER][-2:])
+    max_estimation_time = np.mean(client_tier_time[straggler_index,SMALLEST_TIER][:2])
+    # max_estimation_time = client_tier_time[straggler_index,SMALLEST_TIER][0]
     
     return straggler_index, max_estimation_time
         
@@ -669,7 +672,7 @@ def tier_scheduler(client_tier, client_times, num_tiers, server_wait_time, clien
     max_time_list.loc[len(max_time_list)] = max_time
         
     for c in client_tier.keys(): # I can change it and ignore straggler index, and assign that to best available
-        if c in idxs_users:
+        if c in idxs_users and True:
             client_tier[c] = client_tier_last[c]
             
             mean = np.mean(client_tier_time[c,client_tier_last[c]])
@@ -696,25 +699,29 @@ def tier_scheduler(client_tier, client_times, num_tiers, server_wait_time, clien
                     mean = client_times[c].iloc[-1]
                     
 
-                else:
-                    clinet_computaion_time = np.mean(client_tier_time[c,client_tier_last[c]]) - data_transmitted_client_all[c] / net_speed[c]
-                    client_estimation_time_all_tiers = (list(np.array([value for value in tier_ratios.values()]) * clinet_computaion_time / tier_ratios[client_tier_last[c]]) # computation estimation
-                                                        + np.array([value for value in tier_intermediate_data_profile.values()]) / net_speed[c] ) # commmunication estimation
-                    client_tier[c], estimated_time = index_of_greatest_smaller(client_estimation_time_all_tiers, max_time)
+            
+                clinet_computaion_time = np.mean(client_tier_time[c,client_tier_last[c]]) - data_transmitted_client_all[c] / net_speed[c]
+                client_estimation_time_all_tiers = (list(np.array([value for value in tier_ratios.values()]) * clinet_computaion_time / tier_ratios[client_tier_last[c]]) # computation estimation
+                                                    + np.array([value for value in tier_intermediate_data_profile.values()]) / net_speed[c] ) # commmunication estimation
+                client_tier[c], estimated_time = index_of_greatest_smaller(client_estimation_time_all_tiers, max_time / 1.3)
+                
+                # not change if time dif is not large
+                if abs(estimated_time - np.mean(client_tier_time[c,client_tier_last[c]])) < estimated_time / 10:
+                    client_tier[c] = client_tier_last[c]
                     
-                    # not change if time dif is not large
-                    if abs(estimated_time - np.mean(client_tier_time[c,client_tier_last[c]])) < estimated_time / 10:
-                        client_tier[c] = client_tier_last[c]
-                        
+                
+                # Check if the time difference is large enough to trigger a change in client tier
+                estimated_time_diff = abs(estimated_time - np.mean(client_tier_time[c, client_tier_last[c]]))
+                if estimated_time_diff < estimated_time * time_diff_threshold:
+                    # Keep the current client tier if the time difference is not large enough
+                    client_tier[c] = client_tier_last[c]
                     
-                    # Check if the time difference is large enough to trigger a change in client tier
-                    estimated_time_diff = abs(estimated_time - np.mean(client_tier_time[c, client_tier_last[c]]))
-                    if estimated_time_diff < estimated_time * time_diff_threshold:
-                        # Keep the current client tier if the time difference is not large enough
-                        client_tier[c] = client_tier_last[c]
-                        
                     
-                    # print(f'assign client {c} to tier {7 - client_tier[c] + 1}')
+                if np.mean(client_tier_time[c,client_tier[c]]) > max_time * 0.95:
+                    client_tier[c] = client_tier_last[c]
+                    
+                
+                # print(f'assign client {c} to tier {7 - client_tier[c] + 1}')
                     
                     
                        
