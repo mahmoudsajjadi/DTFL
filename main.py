@@ -55,6 +55,7 @@ from utils.fedavg import aggregated_fedavg
 
 from utils.dynamic_tier import dynamic_tier9
 from utils.dynamic_tier import tier_scheduler
+from utils.TierScheduler import TierScheduler
 from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar10
 from api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
 from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
@@ -117,7 +118,7 @@ def add_args(parser):
     parser.add_argument('--data_dir', type=str, default='./data', help='data directory')
     parser.add_argument('--partition_method', type=str, default='hetero', metavar='N',
                         help='how to partition the dataset on local workers')
-    parser.add_argument('--partition_alpha', type=float, default=1000000, metavar='PA',
+    parser.add_argument('--partition_alpha', type=float, default=10000000, metavar='PA',
                         help='partition alpha (default: 0.5)')
         
     # Federated learning related arguments
@@ -164,7 +165,7 @@ def add_args(parser):
     
     
     # Add the argument for simulation like net_speed_list
-    parser.add_argument('--net_speed_list', type=str, default=[200, 100, 100, 100, 50],  #[100, 50, 50, 20, 10]
+    parser.add_argument('--net_speed_list', type=str, default=[100, 30, 30, 30, 10],  #[100, 50, 50, 20, 10]
                     metavar='N', help='list of net speeds in mega bytes')
     parser.add_argument('--delay_coefficient_list', type=str, default=[16, 20, 34, 130, 250],  # 1/ [27, 21, 12, 6.5, 3.2] ---  [16, 22, 54, 72, 256]   
                     metavar='N', help='list of delay coefficients')
@@ -175,6 +176,9 @@ def add_args(parser):
 DYNAMIC_LR_THRESHOLD = 0.0001
 DEFAULT_FRAC = 1.0        # participation of clients; if 1 then 100% clients participate in SFLV1
 
+
+#### Initialization
+T_max = 1000
 
 NUM_CPUs = os.cpu_count()
 
@@ -209,6 +213,8 @@ if args.dataset == 'cifar10':
     class_num = 10
 elif args.dataset == 'cifar100' or args.dataset == 'cinic10':
     class_num = 100
+elif args.dataset == 'HAM10000':
+    class_num = 7
 
 if args.whether_FedAVG_base:
     if args.model == 'resnet56_7':
@@ -279,7 +285,7 @@ if args.whether_FedAVG_base:
 
 
 elif num_tiers == 7:
-    client_type_percent = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+    client_type_percent = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     tier = 1
 
     
@@ -403,18 +409,19 @@ if args.dataset == "cinic10":
     dataset_test = test_data_local_dict
     dataset_train = train_data_local_dict
     
-    sataset_size = {}
+    dataset_size = {}
     for i in range(0,len(traindata_cls_counts)):
-        sataset_size[i] = sum(traindata_cls_counts[i].values())
-    avg_dataset = sum(sataset_size.values()) / len(sataset_size)
+        dataset_size[i] = sum(traindata_cls_counts[i].values())
+    avg_dataset = sum(dataset_size.values()) / len(dataset_size)
 
-sataset_size = {}
+dataset_size = {}
 if args.dataset != "HAM10000" and args.dataset != "cinic10":
     for i in range(0,args.client_number):
         # print(f'Client {i} :', dict(Counter(dataset_test[i].dataset.target)))
         # print(f'Client {i} :', dict(Counter(dataset_train[i].dataset.target)))
-        sataset_size[i] = sum(dict(Counter(dataset_train[i].dataset.target)).keys())
-    avg_dataset = sum(sataset_size.values()) / len(sataset_size)
+        # dataset_size[i] = sum(dict(Counter(dataset_train[i].dataset.target)).keys())
+        dataset_size[i] = len(dataset_train[i].dataset.target)
+    avg_dataset = sum(dataset_size.values()) / len(dataset_size)
     
 
 
@@ -1775,10 +1782,13 @@ idxs_users, m = get_random_user_indices(num_users, DEFAULT_FRAC)
 # record all data transmitted in last involeved epoch
 data_transmitted_client_all = {}
 
+computation_time_clients = {}
+for k in range(num_users):
+    computation_time_clients[k] = []
 
 # Main loop over rounds    
 for iter in range(epochs):
-    if iter == int(50) and True:
+    if iter == int(50) and False:
         delay_coefficient[0] = delay_coefficient_list[2]
         net_speed[0] = net_speed_list[2]
         delay_coefficient[1] = delay_coefficient_list[4]
@@ -1969,11 +1979,20 @@ for iter in range(epochs):
         [client_tier, client_epoch, avg_tier_time_list, max_time_list, client_times] = tier_scheduler(client_tier_all[:], simulated_delay_historical_df, 
                                                     num_tiers, server_wait_first_to_last_client, client_epoch,
                                                     time_train_server_train_all_list, num_users, iter,
-                                                    sataset_size = sataset_size, avg_tier_time_list = avg_tier_time_list,
+                                                    dataset_size = dataset_size, avg_tier_time_list = avg_tier_time_list,
                                                     max_time_list = max_time_list, idxs_users = idxs_users,
                                                     data_transmitted_client_all = data_transmitted_client_all,
                                                     net_speed = net_speed) # assign next tier and model
-        wandb.log({"max_time": float(max_time_list.loc[len(max_time_list)-1]), "epoch": iter}, commit=False)
+        
+        [client_tier, T_max, computation_time_clients] = TierScheduler(computation_time_clients, T_max, client_tier_all = client_tier_all,
+                                                    delay_history = simulated_delay_historical_df, 
+                                                    num_tiers = num_tiers, client_epoch = client_epoch,
+                                                    num_users = num_users, dataset_size = dataset_size,
+                                                    batch_size = args.batch_size,
+                                                    data_transmitted_client_all = data_transmitted_client_all,
+                                                    net_speed = net_speed)
+        # wandb.log({"max_time": float(max_time_list.loc[len(max_time_list)-1]), "epoch": iter}, commit=False)
+        wandb.log({"max_time": T_max, "epoch": iter}, commit=False)
                                                     
     client_tier_all.append(copy.deepcopy(client_tier))
     
