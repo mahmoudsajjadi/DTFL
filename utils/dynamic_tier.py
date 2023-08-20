@@ -612,7 +612,7 @@ def tier_scheduler(client_tier, client_times, num_tiers, server_wait_time, clien
     memory_size = 10 # how many previous experiments look at for each tier in  one client
     
     if kwargs:
-        sataset_size = kwargs['sataset_size']
+        sataset_size = kwargs['dataset_size']
         avg_tier_time_list = kwargs['avg_tier_time_list']
         max_time_list = kwargs['max_time_list']
         idxs_users = kwargs['idxs_users']
