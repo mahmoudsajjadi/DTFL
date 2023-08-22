@@ -32,6 +32,8 @@ def client_time_tier(computation_time_clients, client_tier, num_users, num_tiers
                 if client_tier[t][i] == j and not np.isnan(computation_time_clients[i][t]):
                     client_tier_time[i,j].append(computation_time_clients[i][t])
                     
+    return client_tier_time
+                    
                         
                         
                         
@@ -127,11 +129,13 @@ def TierScheduler(computation_time_clients, T_max, **kwargs):
     
     time_estimation_client = {}
     client_tier_next = {}
-    client_time_tier(computation_time_clients, client_tier, num_users, num_tiers)
+    client_times_tier = client_time_tier(computation_time_clients, client_tier, num_users, num_tiers)
     
     for k in range(num_users):
         
-        current_comp_estimation_time = pd.DataFrame({"Times":computation_time_clients[k]})['Times'].ewm(span=4, adjust=False).mean().iloc[-1]
+        times_last_tier = client_times_tier[k,client_tier[-1][k]]
+        # current_comp_estimation_time = pd.DataFrame({"Times":computation_time_clients[k]})['Times'].ewm(span=10, adjust=False).mean().iloc[-1]
+        current_comp_estimation_time = pd.DataFrame({"Times":times_last_tier})['Times'].ewm(span=5, adjust=False).mean().iloc[-1]
         
         time_estimation_sever = {}
         time_estimation_sever_side = {}
@@ -157,6 +161,11 @@ def TierScheduler(computation_time_clients, T_max, **kwargs):
         
     T_max = max([time_estimation_client[key] for key in sorted(time_estimation_client.keys())])
     print('T_max: ', T_max)
+    
+    client_tier_next = {i: (i % SMALLEST_TIER) + 1 for i in range(num_users)}
+    #client_tier_next = {i: 6 for i in range(num_users)}
+    
     print('Tier', client_tier_next)
+    
     
     return client_tier_next, T_max, computation_time_clients

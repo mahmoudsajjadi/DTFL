@@ -118,16 +118,16 @@ def add_args(parser):
     parser.add_argument('--data_dir', type=str, default='./data', help='data directory')
     parser.add_argument('--partition_method', type=str, default='hetero', metavar='N',
                         help='how to partition the dataset on local workers')
-    parser.add_argument('--partition_alpha', type=float, default=10000000, metavar='PA',
+    parser.add_argument('--partition_alpha', type=float, default=100000000, metavar='PA',
                         help='partition alpha (default: 0.5)')
         
     # Federated learning related arguments
     parser.add_argument('--client_epoch', default=1, type=int)
-    parser.add_argument('--client_number', type=int, default=10, metavar='NN',
+    parser.add_argument('--client_number', type=int, default=2, metavar='NN',
                         help='number of workers in a distributed cluster')
     parser.add_argument('--batch_size', type=int, default=100, metavar='N',
                         help='input batch size for training (default: 64)')
-    parser.add_argument('--rounds', default=100, type=int)
+    parser.add_argument('--rounds', default=300, type=int)
     parser.add_argument('--whether_local_loss', default=True, type=bool)
     parser.add_argument('--whether_local_loss_v2', default=False, type=bool)
     parser.add_argument('--whether_FedAVG_base', default=0, type=int) # this is for base line of fedavg
@@ -1597,7 +1597,7 @@ class SkinData(Dataset):
 # Train-test split          
 if args.dataset == "HAM10000":
     
-    df = df[1:10015:20]
+    df = df[1:10015:1]
     train, test = train_test_split(df, test_size = 0.2)
     
     train = train.reset_index()
@@ -1976,13 +1976,13 @@ for iter in range(epochs):
     
     if not args.whether_FedAVG_base:
         
-        [client_tier, client_epoch, avg_tier_time_list, max_time_list, client_times] = tier_scheduler(client_tier_all[:], simulated_delay_historical_df, 
-                                                    num_tiers, server_wait_first_to_last_client, client_epoch,
-                                                    time_train_server_train_all_list, num_users, iter,
-                                                    dataset_size = dataset_size, avg_tier_time_list = avg_tier_time_list,
-                                                    max_time_list = max_time_list, idxs_users = idxs_users,
-                                                    data_transmitted_client_all = data_transmitted_client_all,
-                                                    net_speed = net_speed) # assign next tier and model
+        # [client_tier, client_epoch, avg_tier_time_list, max_time_list, client_times] = tier_scheduler(client_tier_all[:], simulated_delay_historical_df, 
+        #                                             num_tiers, server_wait_first_to_last_client, client_epoch,
+        #                                             time_train_server_train_all_list, num_users, iter,
+        #                                             dataset_size = dataset_size, avg_tier_time_list = avg_tier_time_list,
+        #                                             max_time_list = max_time_list, idxs_users = idxs_users,
+        #                                             data_transmitted_client_all = data_transmitted_client_all,
+        #                                             net_speed = net_speed) # assign next tier and model
         
         [client_tier, T_max, computation_time_clients] = TierScheduler(computation_time_clients, T_max, client_tier_all = client_tier_all,
                                                     delay_history = simulated_delay_historical_df, 
