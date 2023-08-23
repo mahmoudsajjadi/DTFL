@@ -99,8 +99,8 @@ def aggregated_fedavg(w_locals_server_tier, w_locals_client_tier, num_tiers, num
                 w_avg[k] += w_locals_server_tier[i][k] * client_sample[i]
                 # print(k)
                 c += 1
-        if c != num_users:# and False:
-            print(k, c)            
+        # if c != num_users:# and False:
+        #     print(k, c)            
         # w_avg[k] = torch.div(w_avg[k], num_users)
         #w_avg[k] = torch.div(w_avg[k], len(w_locals_server_tier))  # devide by number of involved clients
         w_avg[k] = torch.div(w_avg[k], sum(client_sample))  # devide by number of involved clients
