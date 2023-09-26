@@ -4,8 +4,8 @@ This repository contains the code for the paper "Speed Up Federated Learning in 
 
 #Usage
 To train the model, run the following command:
-'''
+
 
 python3 main.py
 
-'''
+
