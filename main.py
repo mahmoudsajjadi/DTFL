@@ -1,6 +1,6 @@
 # ============================================================================
 '''
-AAAI Submission for DTFL (Dynamic Tiering Federated Learning)
+ICLR Submission for DTFL (Dynamic Tiering Federated Learning)
 '''
 # Single program simulation for heterogeneous environment on a machine
 # ============================================================================
@@ -106,7 +106,7 @@ def add_args(parser):
     parser.add_argument('--whether_dynamic_lr_client', default=1, type=int)
     parser.add_argument('--optimizer', default="Adam", type=str, help='optimizer: SGD, Adam, etc.')
     parser.add_argument('--wd', help='weight decay parameter;', type=float, default=5e-4)
-
+ 
     # Model related arguments
     parser.add_argument('--model', type=str, default='resnet56_7', metavar='N',
                         help='neural network used in training')
@@ -123,7 +123,7 @@ def add_args(parser):
         
     # Federated learning related arguments
     parser.add_argument('--client_epoch', default=1, type=int)
-    parser.add_argument('--client_number', type=int, default=2, metavar='NN',
+    parser.add_argument('--client_number', type=int, default=5, metavar='NN',
                         help='number of workers in a distributed cluster')
     parser.add_argument('--batch_size', type=int, default=100, metavar='N',
                         help='input batch size for training (default: 64)')
@@ -285,7 +285,7 @@ if args.whether_FedAVG_base:
 
 
 elif num_tiers == 7:
-    client_type_percent = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    client_type_percent = [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0]
     tier = 1
 
     
@@ -1788,7 +1788,7 @@ for k in range(num_users):
 
 # Main loop over rounds    
 for iter in range(epochs):
-    if iter == int(50) and False:
+    if iter == int(3) and True:
         delay_coefficient[0] = delay_coefficient_list[2]
         net_speed[0] = net_speed_list[2]
         delay_coefficient[1] = delay_coefficient_list[4]
