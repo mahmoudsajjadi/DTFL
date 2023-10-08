@@ -159,7 +159,4 @@ def TierScheduler(computation_time_clients, T_max, **kwargs):
     T_max = max([time_estimation_client[key] for key in sorted(time_estimation_client.keys())])
     print('T_max: ', T_max)
     
-    print('Tier', [SMALLEST_TIER - client_tier_next[key] + 1 for key in (client_tier_next.keys())])  # to become same order as in the paper
-    
-    
     return client_tier_next, T_max, computation_time_clients
