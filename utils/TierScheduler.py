@@ -147,13 +147,11 @@ def TierScheduler(computation_time_clients, T_max, **kwargs):
                 time_estimation_sever_side[m] = (total_data_size_tier[m] / net_speed[k] + profile_server_side[m]) * batch_num_clients[k]
                 time_estimation[m] = max(time_estimation_sever_side[m], time_estimation_client_side[m])
                 
-            print(f'client {k}', [f'{time:.2f}' for time in time_estimation.values()])
             time_estimation_list = [time_estimation[key] for key in sorted(time_estimation.keys())]
             time_estimation_client[k] = min(time_estimation_list)
             
             client_tier_next[k], _ = index_of_greatest_smaller(time_estimation_list, T_max)
         else:
-            print([f'client {k} not participate yet'])
             client_tier_next[k] = SMALLEST_TIER
         
     T_max = max([time_estimation_client[key] for key in sorted(time_estimation_client.keys())])
