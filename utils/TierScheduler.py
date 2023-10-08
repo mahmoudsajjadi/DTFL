@@ -155,6 +155,6 @@ def TierScheduler(computation_time_clients, T_max, **kwargs):
             client_tier_next[k] = SMALLEST_TIER
         
     T_max = max([time_estimation_client[key] for key in sorted(time_estimation_client.keys())])
-    print('T_max: ', T_max)
+    #print('T_max: ', T_max)
     
     return client_tier_next, T_max, computation_time_clients
