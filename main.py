@@ -1,7 +1,4 @@
 # ============================================================================
-'''
-ICLR Submission for DTFL (Dynamic Tiering Federated Learning)
-'''
 # Deployment Environment and Resource Profiles:
 # The DTFL and the baselines are deployed on a server with the following specifications:
 # - Dual-sockets Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz 
