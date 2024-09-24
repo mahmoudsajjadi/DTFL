@@ -1,5 +1,5 @@
 # DTFL
-This repository contains the code for the paper "Speed Up Federated Learning in Heterogeneous Environment: A Dynamic Tiering Approach"
+This repository contains the code for the paper "Speed Up Federated Learning in Heterogeneous Environments: A Dynamic Tiering Approach"
 
 DTFL is a federated learning algorithm designed to speed up training in heterogeneous environments. In heterogeneous environments, the devices participating in federated learning may have different computing resources and network connectivity. DTFL addresses this by dynamically assigning devices to different tiers based on their capabilities.
 
