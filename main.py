@@ -353,7 +353,7 @@ def calculate_data_size(w_model):
 #                           Client-side Model definition
 #=====================================================================================================
 # Model at client side
-
+class ResNet18_client_side(nn.Module):
     # def __init__(self):
     def __init__(self, block, num_layers, classes):
         super(ResNet18_client_side, self).__init__()
